@@ -1,4 +1,4 @@
-const CACHE_NAME = 'quizforge-v1.2.16';
+const CACHE_NAME = 'quizforge-v1.3';
 
 self.addEventListener('install', (event) => {
   self.skipWaiting();

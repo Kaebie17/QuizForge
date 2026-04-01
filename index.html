@@ -469,6 +469,15 @@ a:hover{text-decoration:underline}
       <button class="btn-sm" style="color:var(--red);border-color:var(--red);font-size:12px" onclick="clearAllTopics()" data-i18n="btn_clr_all">🗑 Clear All</button>
     </div>
   </div>
+  <!-- Inside <div class="tpanel" id="tp-topics"> -->
+
+<div style="margin-top: 30px; border-top: 1.5px dashed var(--red); padding-top: 15px;">
+  <p style="font-size:10px; color:var(--red); font-weight:800; margin-bottom:8px; letter-spacing:0.5px;">DANGER ZONE</p>
+  <button class="btn-sm" style="color:var(--red); border-color:var(--red); width:100%; font-weight:700;" onclick="fullFactoryReset()">
+    ☢️ FULL FACTORY RESET
+  </button>
+  <div class="hint" style="color:var(--red); opacity:0.8;">Wipes all API keys, model settings, and all mastery history.</div>
+</div>
  </div>
 </div>
 
@@ -769,9 +778,12 @@ function cfgLoad() {
   updateBadge();
 }
 function cfgSave() { localStorage.setItem('qf_cfg', JSON.stringify(CFG)); }
-function hasKey() { 
-  const p = PROV[CFG.provider];
-  return p && CFG.keys[p.kname] && CFG.keys[p.kname].length > 5;
+function hasKey() {
+  try {
+    const fresh = JSON.parse(localStorage.getItem('qf_cfg') || '{}');
+    const p = PROV[fresh.provider || 'gemini'];
+    return p && fresh.keys && fresh.keys[p.kname] && fresh.keys[p.kname].length > 5;
+  } catch(e) { return false; }
 }
 
 // ── PROVIDERS ──
@@ -864,9 +876,16 @@ const PROV = {
 
 // ── CORE ENGINE ──
 async function aiJSON(prompt) {
+  let freshCFG;
+  try {
+    freshCFG = JSON.parse(localStorage.getItem('qf_cfg') || '{}');
+  } catch(e) {
+    freshCFG = CFG;
+  }
+  const providerName = freshCFG.provider || 'gemini';
   const p = PROV[CFG.provider];
-  const model = CFG.models[CFG.provider] || p.def;
-  const key = CFG.keys[p.kname];
+  const model = freshCFG.models?.[providerName] || p.def;
+  const key = freshCFG.keys?.[p.kname] || '';
 
   const safePrompt = prompt
     .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, '') // strip control chars
@@ -895,10 +914,6 @@ async function aiJSON(prompt) {
     }
 
     const parsedData = JSON.parse(match[0]);
-    
-    // 4. Log the Final Parsed Data
-    console.log("📦 PARSED JSON:", parsedData);
-    console.groupEnd(); // Close the console group
     
     return parsedData;
 
@@ -1628,6 +1643,25 @@ function clearKey() {
     if (statusEl) {
       statusEl.textContent = "🗑 Key cleared from this browser.";
       statusEl.className = "key-status ks-no";
+    }
+  }
+}
+function fullFactoryReset() {
+  const c1 = confirm("⚠️ EXTREME WARNING ⚠️\n\nThis will permanently delete:\n1. ALL API Keys\n2. ALL saved Model IDs\n3. ALL Mastery/Session history for every topic.\n\nThis cannot be undone. Are you sure?");
+  
+  if (c1) {
+    const c2 = confirm("FINAL CHECK: Are you absolutely certain you want to wipe this app clean?");
+    if (c2) {
+      // 1. Wipe all known localStorage keys for QuizForge
+      localStorage.removeItem('qf_cfg');    // Wipes Keys & Models
+      localStorage.removeItem('qf_mem_v1'); // Wipes Topics & Mastered Facts
+      localStorage.removeItem('qf_lang');   // Wipes Language settings
+      
+      // 2. Clear any other session data
+      alert("App has been reset to factory state. The page will now reload.");
+      
+      // 3. Force reload to reset the app state
+      window.location.reload();
     }
   }
 }
