@@ -831,9 +831,15 @@ const PROV = {
     models: [{id:'llama-3.3-70b-versatile', label:'Llama 3.3 70B'}],
     def: 'llama-3.3-70b-versatile',
     async call(key, model, prompt, sysMsg) {
+      const bodyObj = { 
+        model, 
+        messages: [{role:'system', content:sysMsg}, {role:'user', content:prompt}] 
+      };
+      console.log('BODY LENGTH:', JSON.stringify(bodyObj).length);
+      console.log('BODY PREVIEW:', JSON.stringify(bodyObj).slice(0, 200));
       const r = await fetch('https://api.groq.com/openai/v1/chat/completions', {
         method: 'POST', headers: {'Content-Type':'application/json', 'Authorization':`Bearer ${key}`},
-        body: JSON.stringify({ model, messages: [{role:'system', content:sysMsg}, {role:'user', content:prompt}] })
+        body: JSON.stringify(bodyObj)
       });
       const d = await r.json();
       if (d.error) throw new Error(d.error.message);
@@ -862,23 +868,20 @@ async function aiJSON(prompt) {
   const model = CFG.models[CFG.provider] || p.def;
   const key = CFG.keys[p.kname];
 
-  // 1. Start the Console Group and Timer
-  console.group(`%c🚀 API CALL: ${CFG.provider.toUpperCase()}`, "color: #c94f2a; font-weight: bold;");
-  console.log(`Model: %c${model}`, "color: #2a6ec9; font-weight: bold;");
-  console.log(`Full Prompt:`, prompt); // Log the full prompt for debugging repetition
-  console.time("⏱ API Response Time"); 
-
+  const safePrompt = prompt
+    .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, '') // strip control chars
+    .trim();
   // 3. Construct URL and Payload
   const sysMsg = `Professional tutor. Output ONLY a JSON array. Language: ${lang === 'hi' ? 'Hindi' : 'English'}`;
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`;
   
   const payload = {
-    contents: [{ parts: [{ text: `${sysMsg}\n\nTask: ${prompt}` }] }]
+    contents: [{ parts: [{ text: `${sysMsg}\n\nTask: ${safePrompt}` }] }]
   };
 
   try {
     // 2. Perform the API call
-    const txt = await p.call(key, model, prompt, sysMsg);
+    const txt = await p.call(key, model, safePrompt, sysMsg);
     
     // 3. Log Success and the Raw Response
     console.timeEnd("⏱ API Response Time");
