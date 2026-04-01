@@ -1,0 +1,1660 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#c94f2a">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="QuizForge">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon.svg">
+<title>QuizForge</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@400;500;600&family=Noto+Sans+Devanagari:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<link rel="manifest" href="manifest.json">
+<style>
+/* ── TOKENS (UNALTERED) ── */
+:root {
+  --bg:#f6f4ef; --sur:#ffffff; --sur2:#eeeae2; --bdr:#e0dbd0;
+  --tx:#18140f;  --mu:#7a7268;
+  --acc:#c94f2a; --acc-l:#fdf0ec;
+  --blue:#2a6ec9; --blue-l:#edf3fd;
+  --grn:#1f9c5c;  --grn-l:#edfaf3;
+  --red:#c9392a;  --red-l:#fdecea;
+  --amb:#c97f2a;  --amb-l:#fdf5ec;
+  --r:14px; --sh:0 2px 14px rgba(0,0,0,.07);
+}
+/* ── RESET (UNALTERED) ── */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{width:100%;min-height:100vh}
+body{font-family:'DM Sans','Noto Sans Devanagari',sans-serif;font-size:15px;background:var(--bg);color:var(--tx);-webkit-font-smoothing:antialiased}
+button{font-family:inherit;cursor:pointer}
+input,select,textarea{font-family:inherit}
+a{color:var(--acc);text-decoration:none}
+a:hover{text-decoration:underline}
+
+/* ── LAYOUT ── */
+#wrap{max-width:740px;width:100%;margin:0 auto;padding:14px 16px 80px}
+.hdr{display:flex;align-items:center;gap:10px;padding:10px 0 14px}
+.logo{width:38px;height:38px;min-width:38px;border-radius:10px;background:var(--acc);display:grid;place-items:center;font-family:'DM Serif Display',serif;color:#fff;font-size:20px}
+.hdr-title{flex:1;min-width:0}
+.hdr-title h1{font-family:'DM Serif Display',serif;font-size:20px;font-weight:400;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hdr-title p{font-size:11px;color:var(--mu);margin-top:1px}
+.hdr-btns{display:flex;align-items:center;gap:6px;flex-shrink:0}
+
+/* ── BUTTONS ── */
+.btn-icon{height:32px;padding:0 10px;border-radius:8px;border:1.5px solid var(--bdr);background:var(--sur);color:var(--tx);font-size:12px;font-weight:600;display:inline-flex;align-items:center;gap:4px;transition:border-color .15s,background .15s,color .15s;white-space:nowrap}
+.btn-icon:hover,.btn-icon.active{border-color:var(--acc);background:var(--acc-l);color:var(--acc)}
+.pbadge{height:32px;padding:0 9px;border-radius:8px;font-size:11px;font-weight:700;border:1.5px solid;display:inline-flex;align-items:center;max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;transition:all .15s}
+.pb-g{color:#1a73e8;border-color:#1a73e8;background:#e8f0fe}
+.pb-q{color:var(--grn);border-color:var(--grn);background:var(--grn-l)}
+.pb-p{color:#6b2a9c;border-color:#6b2a9c;background:#f5edf9}
+.pb-n{color:var(--red);border-color:var(--red);background:var(--red-l)}
+.btn-pri{width:100%;padding:13px;border-radius:11px;border:none;background:var(--acc);color:#fff;font-size:15px;font-weight:600;box-shadow:0 4px 14px rgba(201,79,42,.28);transition:transform .12s,box-shadow .12s}
+.btn-pri:hover{transform:translateY(-1px);box-shadow:0 6px 20px rgba(201,79,42,.35)}
+.btn-pri:active{transform:none}
+.btn-pri:disabled{opacity:.4;cursor:not-allowed;transform:none}
+.btn-sm{padding:7px 14px;border-radius:9px;border:1.5px solid var(--bdr);background:var(--sur);color:var(--tx);font-size:13px;font-weight:500;transition:border-color .15s,color .15s}
+.btn-sm:hover{border-color:var(--acc);color:var(--acc)}
+.btn-acc{padding:8px 16px;border-radius:9px;border:none;background:var(--acc);color:#fff;font-size:13px;font-weight:600;box-shadow:0 2px 8px rgba(201,79,42,.22);transition:transform .12s}
+.btn-acc:hover{transform:translateY(-1px)}
+.btn-grn{padding:8px 16px;border-radius:9px;border:none;background:var(--grn);color:#fff;font-size:13px;font-weight:600;box-shadow:0 2px 8px rgba(31,156,92,.22)}
+/* Custom badges for new providers */
+.pb-o { color: #10a37f; border-color: #10a37f; background: #e7f6f2; } /* OpenAI Green */
+.pb-d { color: #4d66d9; border-color: #4d66d9; background: #eef1fc; } /* DeepSeek Blue */
+
+/* ── CARD ── */
+.card{background:var(--sur);border:1px solid var(--bdr);border-radius:var(--r);padding:22px;box-shadow:var(--sh);margin-bottom:14px}
+
+/* ── FORMS ── */
+.frow{margin-bottom:15px}
+.frow label{display:block;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--mu);margin-bottom:5px}
+.frow input,.frow select,.frow textarea{width:100%;border:1.5px solid var(--bdr);border-radius:9px;padding:10px 12px;font-size:14px;background:var(--sur);color:var(--tx);outline:none;transition:border-color .18s}
+.frow textarea{resize:vertical;min-height:80px;line-height:1.5}
+.frow input:focus,.frow select:focus,.frow textarea:focus{border-color:var(--acc)}
+.frow input[type=number]{-moz-appearance:textfield}
+.hint{font-size:11px;color:var(--mu);margin-top:4px;line-height:1.5}
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+
+/* ── ALERTS ── */
+.alert{border-radius:9px;padding:11px 13px;font-size:13px;line-height:1.55;display:none}
+.alert.show{display:block}
+.alert-err{background:var(--red-l);border:1.5px solid var(--red);color:var(--red)}
+.alert-info{background:var(--blue-l);border:1.5px solid var(--blue);color:var(--blue)}
+.alert-warn{background:var(--amb-l);border:1.5px solid var(--amb);color:var(--tx)}
+
+/* ── SCREENS ── */
+.scr{display:none}.scr.show{display:block}
+
+/* ── MODAL ── */
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:999;display:none;align-items:flex-start;justify-content:center;padding:20px 14px;overflow-y:auto}
+.overlay.show{display:flex}
+.modal{background:var(--sur);border-radius:18px;padding:22px;width:100%;max-width:500px;box-shadow:0 20px 60px rgba(0,0,0,.2);position:relative;margin:auto}
+.modal-close{position:absolute;top:13px;right:13px;width:28px;height:28px;border-radius:7px;border:1.5px solid var(--bdr);background:var(--sur);display:grid;place-items:center;font-size:14px}
+.modal-close:hover{background:var(--sur2)}
+.modal-title{font-family:'DM Serif Display',serif;font-size:19px;margin-bottom:3px}
+.modal-sub{font-size:12px;color:var(--mu);margin-bottom:16px;line-height:1.5}
+.modal-tabs{display:flex;gap:3px;background:var(--sur2);border-radius:9px;padding:3px;margin-bottom:16px;overflow-x:auto}
+.mtab{flex:1;min-width:fit-content;padding:6px 8px;border:none;border-radius:7px;background:transparent;font-size:12px;font-weight:500;color:var(--mu);white-space:nowrap;transition:all .15s}
+.mtab.active{background:var(--sur);color:var(--tx);font-weight:700;box-shadow:var(--sh)}
+.tpanel{display:none}.tpanel.show{display:block}
+
+/* ── PROVIDER CARDS ── */
+.prov-list{display:flex;flex-direction:column;gap:8px;margin-bottom:14px}
+.prov-card{border:2px solid var(--bdr);border-radius:11px;padding:12px 13px;display:flex;align-items:center;gap:11px;transition:all .15s}
+.prov-card:hover,.prov-card.active{border-color:var(--acc);background:var(--acc-l)}
+.prov-ico{font-size:20px;flex-shrink:0}
+.prov-name{font-weight:700;font-size:13px}
+.prov-desc{font-size:11px;color:var(--mu);margin-top:1px}
+.tag-free{font-size:10px;font-weight:700;padding:2px 6px;border-radius:7px;margin-left:auto;flex-shrink:0;background:var(--grn-l);color:var(--grn);border:1px solid var(--grn)}
+.tag-paid{font-size:10px;font-weight:700;padding:2px 6px;border-radius:7px;margin-left:auto;flex-shrink:0;background:var(--amb-l);color:var(--amb);border:1px solid var(--amb)}
+.key-row{display:flex;gap:6px}
+.key-row input{flex:1;font-size:13px}
+.eye-btn{padding:9px 11px;border:1.5px solid var(--bdr);border-radius:9px;background:var(--sur);font-size:13px}
+.eye-btn:hover{border-color:var(--acc)}
+.key-status{font-size:12px;font-weight:500;min-height:18px;margin-top:5px}
+.ks-ok{color:var(--grn)}.ks-bad{color:var(--red)}.ks-no{color:var(--mu)}
+
+/* Topics list */
+.topic-row{display:flex;align-items:center;gap:10px;padding:9px 12px;background:var(--sur2);border-radius:9px;border:1px solid var(--bdr);margin-bottom:7px}
+.topic-name{font-weight:600;font-size:13px;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.topic-meta{font-size:11px;color:var(--mu);margin-top:2px}
+
+/* ── LOADING ── */
+.dots{display:flex;gap:8px;justify-content:center;margin-bottom:20px}
+.dot{width:9px;height:9px;border-radius:50%;background:var(--acc);animation:bop .9s ease-in-out infinite}
+.dot:nth-child(2){animation-delay:.18s}.dot:nth-child(3){animation-delay:.36s}
+@keyframes bop{0%,100%{transform:translateY(0);opacity:.3}50%{transform:translateY(-10px);opacity:1}}
+
+/* ── MODE CARDS ── */
+.mode-grid{display:grid;grid-template-columns:1fr 1fr;gap:11px;margin-bottom:18px}
+.mcard{border:2px solid var(--bdr);border-radius:var(--r);padding:15px 13px;background:var(--sur);text-align:left;transition:all .18s}
+.mcard:hover,.mcard.active{border-color:var(--acc);background:var(--acc-l)}
+.mcard-ico{font-size:22px;margin-bottom:7px}
+.mcard-title{font-weight:700;font-size:14px;margin-bottom:2px}
+.mcard-desc{font-size:11px;color:var(--mu);line-height:1.5}
+
+/* ── DIFF PILLS ── */
+.dpill{display:inline-block;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:700;border:1.5px solid}
+.dp-1{color:#5c8a2a;border-color:#5c8a2a;background:#f2fae8}
+.dp-2{color:#2a8a5c;border-color:#2a8a5c;background:var(--grn-l)}
+.dp-3{color:#2a7a9c;border-color:#2a7a9c;background:#edf6fd}
+.dp-4{color:var(--amb);border-color:var(--amb);background:var(--amb-l)}
+.dp-5{color:#c96a2a;border-color:#c96a2a;background:#fdf3ec}
+.dp-6{color:var(--red);border-color:var(--red);background:var(--red-l)}
+.dp-7{color:#8a2a7a;border-color:#8a2a7a;background:#fdedf9}
+
+/* ── PRACTICE ── */
+.pmeta{display:flex;align-items:center;justify-content:space-between;margin-bottom:11px;flex-wrap:wrap;gap:7px}
+.ptopic{font-weight:600;font-size:13px;color:var(--mu);max-width:55%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.diff-bar{background:var(--sur);border:1px solid var(--bdr);border-radius:10px;padding:10px 13px;margin-bottom:10px;display:flex;align-items:center;gap:10px}
+.diff-bar-lbl{font-size:11px;color:var(--mu);white-space:nowrap;flex-shrink:0}
+.diff-bar-track{flex:1;height:5px;background:var(--bdr);border-radius:3px;overflow:hidden}
+.diff-bar-fill{height:100%;border-radius:3px;background:linear-gradient(90deg,var(--grn),var(--acc));transition:width .7s ease}
+.diff-bar-r{font-size:11px;color:var(--mu);white-space:nowrap;min-width:90px;text-align:right}
+.sec-banner{background:var(--sur2);border:1px solid var(--bdr);border-radius:10px;padding:8px 12px;margin-bottom:10px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.sec-banner strong{font-weight:700;font-size:13px}
+.sec-banner-hint{font-size:12px;color:var(--mu)}
+.sec-banner-r{margin-left:auto;font-size:11px;color:var(--mu)}
+.qlist{display:flex;flex-direction:column;gap:11px;margin-bottom:13px}
+.qblock{background:var(--sur);border:1px solid var(--bdr);border-radius:var(--r);padding:16px;box-shadow:var(--sh)}
+.qnum-row{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:6px}
+.qnum{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--mu)}
+.exam-tag{font-size:10px;color:var(--mu);font-weight:500;background:var(--sur2);border:1px solid var(--bdr);padding:2px 7px;border-radius:10px;white-space:nowrap;margin-left:8px}
+.qtext {
+  font-family: 'DM Serif Display', serif;
+  font-size: 17px;
+  line-height: 1.5;
+  margin-bottom: 12px;
+  white-space: pre-wrap; /* This preserves the AI's line breaks in passages */
+  max-height: 400px;     /* Optional: prevents passage from taking up the whole screen */
+  overflow-y: auto;      /* Adds scrollbar to long passages */
+}
+.choices{display:flex;flex-direction:column;gap:6px}
+.cbtn{display:flex;align-items:flex-start;gap:9px;padding:10px 12px;border:1.5px solid var(--bdr);border-radius:10px;background:var(--sur);text-align:left;font-size:13px;color:var(--tx);line-height:1.5;width:100%;transition:all .15s}
+.cbtn:hover:not(.dis){border-color:var(--blue);background:var(--blue-l)}
+.cbtn.cor{border-color:var(--grn);background:var(--grn-l)}
+.cbtn.wrg{border-color:var(--red);background:var(--red-l)}
+.cbtn.dis{cursor:default}
+.clbl{width:20px;height:20px;min-width:20px;border-radius:5px;border:1.5px solid var(--bdr);display:grid;place-items:center;font-size:10px;font-weight:700;margin-top:1px;flex-shrink:0;transition:all .15s}
+.cbtn.cor .clbl{border-color:var(--grn);background:var(--grn);color:#fff}
+.cbtn.wrg .clbl{border-color:var(--red);background:var(--red);color:#fff}
+.expl{background:var(--sur2);border-radius:8px;padding:10px 12px;margin-top:9px;font-size:13px;line-height:1.6;display:none}
+.expl.show{display:block;animation:fi .2s ease}
+@keyframes fi{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+.expl-hdr{font-size:12px;font-weight:700;margin-bottom:4px}
+.expl-ok{color:var(--grn)}.expl-ng{color:var(--red)}
+.sec-score{display:inline-flex;align-items:center;gap:7px;background:var(--sur2);border:1px solid var(--bdr);border-radius:8px;padding:5px 13px;font-size:13px;margin-bottom:9px}
+.sec-score strong{font-weight:700}
+.pnav{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px}
+.pnav-info{font-size:12px;color:var(--mu)}
+
+/* Learn More (was Dispute) */
+.lm-btn{display:inline-flex;align-items:center;gap:5px;padding:5px 11px;border-radius:7px;border:1.5px solid var(--amb);background:var(--amb-l);color:var(--amb);font-size:11px;font-weight:700;margin-top:8px;transition:all .15s}
+.lm-btn:hover{background:var(--amb);color:#fff}
+.lm-panel{display:none;margin-top:8px;background:var(--sur);border:1.5px solid var(--bdr);border-radius:10px;padding:13px;animation:fi .2s ease}
+.lm-panel.show{display:block}
+.lm-panel-hint{font-size:12px;color:var(--mu);margin-bottom:6px}
+.lm-panel textarea{width:100%;border:1.5px solid var(--bdr);border-radius:8px;padding:8px 10px;font-size:12px;resize:vertical;min-height:52px;outline:none;margin-bottom:8px;background:var(--sur);color:var(--tx);transition:border-color .15s}
+.lm-panel textarea:focus{border-color:var(--amb)}
+.lm-panel-actions{display:flex;gap:7px;align-items:center}
+.lm-result{margin-top:9px;padding:10px 12px;border-radius:9px;font-size:13px;line-height:1.6;display:none}
+.lm-result.show{display:block;animation:fi .2s ease}
+.lm-confirmed{border:1.5px solid var(--grn);background:var(--grn-l)}
+.lm-overturned{border:1.5px solid var(--acc);background:var(--acc-l)}
+.lm-checking{border:1.5px solid var(--bdr);background:var(--sur2);color:var(--mu)}
+.lm-result-hdr{font-weight:700;font-size:12px;margin-bottom:4px}
+.lm-note{font-size:11px;background:rgba(0,0,0,.04);border-radius:6px;padding:4px 8px;margin-bottom:7px;color:var(--mu)}
+
+/* ── END SCREEN ── */
+.end-wrap{text-align:center;padding:30px 16px}
+.end-ico{font-size:40px;margin-bottom:12px}
+.end-title{font-family:'DM Serif Display',serif;font-size:21px;margin-bottom:7px}
+.end-msg{color:var(--mu);font-size:13px;line-height:1.7;margin-bottom:20px;max-width:400px;margin-left:auto;margin-right:auto}
+.end-btns{display:flex;gap:9px;justify-content:center;flex-wrap:wrap}
+
+/* ── TEST ── */
+.test-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;flex-wrap:wrap;gap:7px}
+.test-topic{font-weight:600;font-size:13px;color:var(--mu)}
+.timer-box{display:flex;align-items:center;gap:6px;background:var(--sur2);border:1px solid var(--bdr);border-radius:8px;padding:5px 11px;font-size:14px;font-weight:700;font-family:'DM Serif Display',serif;transition:all .3s}
+.timer-box.warn{background:var(--amb-l);border-color:var(--amb);color:var(--amb)}
+.timer-box.crit{background:var(--red-l);border-color:var(--red);color:var(--red)}
+.tpbar{height:3px;background:var(--bdr);border-radius:2px;margin-bottom:12px;overflow:hidden}
+.tpbar-fill{height:100%;border-radius:2px;background:var(--blue);transition:width 1s linear}
+.prog-row{display:flex;gap:3px;flex-wrap:wrap;margin-bottom:10px}
+.pdot{width:18px;height:4px;border-radius:2px;background:var(--bdr);transition:background .3s}
+.pdot.ok{background:var(--grn)}.pdot.ng{background:var(--red)}.pdot.skp{background:var(--amb)}
+.tq-num{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--mu);margin-bottom:7px}
+.tq-text{font-family:'DM Serif Display',serif;font-size:18px;line-height:1.45;margin-bottom:14px}
+.test-nav{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-top:6px}
+.test-ctr{font-size:12px;color:var(--mu)}
+
+/* ── RESULTS ── */
+.res-hero{text-align:center;padding:18px 0 13px}
+.res-ring{width:88px;height:88px;border-radius:50%;border:4px solid var(--acc);display:flex;flex-direction:column;align-items:center;justify-content:center;margin:0 auto 11px;background:var(--acc-l)}
+.res-pct{font-family:'DM Serif Display',serif;font-size:26px;color:var(--acc);line-height:1}
+.res-lbl{font-size:10px;color:var(--mu);font-weight:700;text-transform:uppercase}
+.res-title{font-family:'DM Serif Display',serif;font-size:20px;margin-bottom:3px}
+.res-sub{color:var(--mu);font-size:13px}
+.stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:12px 0}
+.sbox{background:var(--sur2);border-radius:10px;padding:10px;text-align:center}
+.snum{font-family:'DM Serif Display',serif;font-size:20px}
+.slbl{font-size:11px;color:var(--mu);margin-top:2px;font-weight:500}
+.sw-head{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--mu);margin-bottom:8px}
+.tag-list{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px}
+.tag-s{padding:4px 10px;border-radius:20px;font-size:12px;font-weight:600;border:1.5px solid var(--grn);color:var(--grn);background:var(--grn-l)}
+.tag-w{padding:4px 10px;border-radius:20px;font-size:12px;font-weight:600;border:1.5px solid var(--red);color:var(--red);background:var(--red-l)}
+.hdiv{height:1px;background:var(--bdr);margin:12px 0}
+.coll-hdr{display:flex;align-items:center;justify-content:space-between;padding:2px 0;user-select:none}
+.coll-hdr h3{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--mu)}
+.coll-body{display:none;margin-top:8px}.coll-body.show{display:block}
+.rev-item{padding:10px 12px;border-radius:10px;border:1.5px solid;font-size:13px;line-height:1.5;margin-bottom:7px}
+.rev-item.ok{border-color:var(--grn);background:var(--grn-l)}
+.rev-item.ng{border-color:var(--red);background:var(--red-l)}
+.rev-q{font-weight:600;margin-bottom:3px;display:flex;justify-content:space-between;align-items:flex-start;gap:8px}
+.rev-expl{font-size:12px;color:var(--mu);margin-top:3px;font-style:italic}
+.res-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+.res-actions .btn-pri{flex:1;padding:11px}
+
+/* ── RECOVERY BANNER ── */
+.rec-banner{background:var(--amb-l);border:1.5px solid var(--amb);border-radius:10px;padding:11px 13px;font-size:13px;color:var(--tx);margin-bottom:13px;display:none;gap:9px;align-items:center;flex-wrap:wrap}
+.rec-banner.show{display:flex}
+
+/* ── NOTES ── */
+.upload-zone{border:2px dashed var(--bdr);border-radius:12px;padding:26px 18px;text-align:center;background:var(--sur2);margin-bottom:11px;transition:all .2s}
+.upload-zone:hover,.upload-zone.drag{border-color:var(--acc);background:var(--acc-l)}
+.upload-zone.has-file{border-color:var(--grn);background:var(--grn-l)}
+.uz-ico{font-size:30px;margin-bottom:7px}
+.uz-title{font-weight:600;font-size:14px;margin-bottom:2px}
+.uz-sub{font-size:12px;color:var(--mu)}
+.chips{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:11px}
+.chip{display:flex;align-items:center;gap:5px;padding:5px 10px;border-radius:20px;background:var(--sur2);border:1px solid var(--bdr);font-size:12px;font-weight:500}
+.chip button{background:none;border:none;font-size:13px;color:var(--mu);line-height:1;padding:0;margin-left:2px}
+.chip button:hover{color:var(--red)}
+.qna-out{display:none}.qna-out.show{display:block}
+.qna-block{background:var(--sur);border:1px solid var(--bdr);border-radius:var(--r);padding:14px;margin-bottom:10px;box-shadow:var(--sh)}
+.qna-q{font-weight:700;font-size:14px;color:var(--acc);margin-bottom:5px;line-height:1.4}
+.qna-a{font-size:13px;line-height:1.65}
+.notes-stats{font-size:12px;color:var(--mu);margin-bottom:10px}
+
+/* ── RESPONSIVE ── */
+@media(max-width:500px){
+  .stats-grid{grid-template-columns:1fr 1fr}
+  .mode-grid,.two-col{grid-template-columns:1fr}
+  .hdr-title p{display:none}
+  .pbadge{display:none}
+}
+
+/* --- ANIMATIONS --- */
+/* --- CELEBRATION WRAPPER --- */
+#celebration-wrap {
+  position: fixed; inset: 0; pointer-events: none; z-index: 9999;
+  display: none; overflow: hidden;
+}
+
+/* 1. GLITTER EXPLOSION */
+.part-glitter {
+  position: absolute; width: 8px; height: 8px; border-radius: 50%;
+  animation: kaboom 1.5s ease-out forwards;
+}
+@keyframes kaboom {
+  0% { transform: translate(0, 0) scale(1); opacity: 1; }
+  100% { transform: translate(var(--tx), var(--ty)) scale(0); opacity: 0; }
+}
+
+/* 2. STAR RAIN */
+.part-star {
+  position: absolute; font-size: 24px;
+  animation: fall 2s linear forwards;
+}
+@keyframes fall {
+  0% { transform: translateY(-50px) rotate(0deg); opacity: 1; }
+  100% { transform: translateY(100vh) rotate(360deg); opacity: 0; }
+}
+
+/* 3. POWER PULSE */
+.pulse-ring {
+  position: absolute; top: 50%; left: 50%;
+  width: 10px; height: 10px; border: 4px solid var(--acc);
+  border-radius: 50%; transform: translate(-50%, -50%);
+  animation: pulse-out 1s ease-out forwards;
+}
+@keyframes pulse-out {
+  0% { width: 0; height: 0; opacity: 1; border-width: 20px; }
+  100% { width: 1000px; height: 1000px; opacity: 0; border-width: 1px; }
+}
+
+</style>
+</head>
+<body>
+<div id="wrap">
+
+<!-- HEADER -->
+<div class="hdr">
+  <div class="logo">Q</div>
+  <div class="hdr-title">
+    <h1 data-i18n="app_title">QuizForge</h1>
+    <p data-i18n="app_sub">AI-powered adaptive MCQ engine</p>
+  </div>
+  <div class="hdr-btns">
+    <button class="btn-icon" id="lang-btn" onclick="toggleLang()">EN</button>
+    <button class="btn-icon" id="notes-btn" onclick="toggleNotes()" title="Notes → Q&A">📝</button>
+    <span class="pbadge pb-n" id="pbadge" onclick="openSettings('provider')">⚙ No AI</span>
+    <button class="btn-icon" onclick="openSettings('provider')">⚙️</button>
+  </div>
+</div>
+
+<!-- SETTINGS MODAL -->
+<div class="overlay" id="overlay-settings">
+ <div class="modal">
+  <button class="modal-close" onclick="closeSettings()">✕</button>
+  <div class="modal-title" data-i18n="set_title">AI Settings</div>
+  <div class="modal-sub" data-i18n="set_sub">Keys are saved only in this browser and sent only to your chosen AI provider.</div>
+  <div class="modal-tabs">
+    <button class="mtab active" data-tab="provider" onclick="swTab(this)" data-i18n="tab_prov">Provider</button>
+    <button class="mtab" data-tab="model" onclick="swTab(this)" data-i18n="tab_mdl">Model</button>
+    <button class="mtab" data-tab="key" onclick="swTab(this)" data-i18n="tab_key">API Key</button>
+    <button class="mtab" data-tab="sync" onclick="swTab(this)" data-i18n="tab_sync">☁ Sync</button>
+    <button class="mtab" data-tab="topics" onclick="swTab(this)" data-i18n="tab_topic">📚 Topics</button>
+  </div>
+
+  <!-- PROVIDER -->
+  <div class="tpanel show" id="tp-provider">
+    <div class="prov-list">
+      <div class="prov-card" id="pc-gemini" onclick="selProv('gemini')">
+        <span class="prov-ico">🔵</span>
+        <div><div class="prov-name">Google Gemini</div><div class="prov-desc">Free tier · Fast · <a href="https://aistudio.google.com/app/apikey" target="_blank" onclick="event.stopPropagation()">Get free key →</a></div></div>
+        <span class="tag-free">FREE</span>
+      </div>
+      <div class="prov-card" id="pc-groq" onclick="selProv('groq')">
+        <span class="prov-ico">⚡</span>
+        <div><div class="prov-name">Groq</div><div class="prov-desc">Free tier · Very fast · <a href="https://console.groq.com/keys" target="_blank" onclick="event.stopPropagation()">Get free key →</a></div></div>
+        <span class="tag-free">FREE</span>
+      </div>
+      <div class="prov-card" id="pc-perplexity" onclick="selProv('perplexity')">
+        <span class="prov-ico">🔍</span>
+        <div><div class="prov-name">Perplexity</div><div class="prov-desc">Paid · Web-aware · <a href="https://www.perplexity.ai/settings/api" target="_blank" onclick="event.stopPropagation()">Get key →</a></div></div>
+        <span class="tag-paid">PAID</span>
+      </div>
+      <div class="prov-card" id="pc-openai" onclick="selProv('openai')">
+        <span class="prov-ico">🟢</span>
+        <div>
+          <div class="prov-name">ChatGPT (OpenAI)</div>
+          <div class="prov-desc">Paid · High Intelligence · <a href="https://platform.openai.com/api-keys" target="_blank" onclick="event.stopPropagation()">Get key →</a></div>
+        </div>
+        <span class="tag-paid">PAID</span>
+      </div>
+      <div class="prov-card" id="pc-deepseek" onclick="selProv('deepseek')">
+        <span class="prov-ico">🐳</span>
+        <div>
+          <div class="prov-name">DeepSeek</div>
+          <div class="prov-desc">Cheap/Free · Powerful Reasoning · <a href="https://platform.deepseek.com/api_keys" target="_blank" onclick="event.stopPropagation()">Get key →</a></div>
+        </div>
+        <span class="tag-paid">CREDITS</span>
+      </div>
+    </div>
+    <button class="btn-acc" onclick="swTabById('model')" data-i18n="btn_next_mdl">Next: Choose Model →</button>
+  </div>
+
+  <!-- MODEL TAB -->
+  <div class="tpanel" id="tp-model">
+  <div class="frow">
+    <label data-i18n="lbl_sel_mdl">Select Model</label>
+    <select id="mdl-sel" onchange="onMdlChange()"></select>
+    <div class="hint" id="mdl-hint"></div>
+  </div>
+  
+  <!-- Text box wrapper -->
+  <div class="frow" id="mdl-custom-wrap" style="display:none; margin-top:10px;">
+    <label data-i18n="lbl_custom">Custom Model ID</label>
+    <input type="text" id="mdl-custom" placeholder="e.g. gpt-4-turbo">
+    <div class="hint">Enter the exact ID from provider docs.</div>
+  </div>
+
+  <div style="display:flex; gap:8px; margin-top:12px">
+    <button class="btn-acc" onclick="saveModel()" data-i18n="btn_save">Save Model</button>
+    <button class="btn-sm" onclick="swTabById('key')" data-i18n="btn_next_key">Next →</button>
+  </div>
+</div>
+
+  <!-- KEY -->
+  <div class="tpanel" id="tp-key">
+    <div class="frow" style="margin-bottom:6px">
+      <label id="key-label" data-i18n="tab_key">API Key</label>
+      <div class="key-row">
+        <input type="password" id="key-inp" placeholder="..." autocomplete="off">
+        <button class="eye-btn" onclick="toggleEye()">👁</button>
+      </div>
+      <div class="hint" id="key-hint"></div>
+    </div>
+    <div class="key-status" id="key-status"></div>
+    <div style="display:flex;gap:8px;margin-top:12px">
+      <button class="btn-acc" onclick="saveKey()" data-i18n="btn_save">Save Key</button>
+      <button class="btn-sm" onclick="clearKey()" data-i18n="btn_clr">Clear</button>
+      <button class="btn-sm" style="margin-left:auto" onclick="closeSettings()" data-i18n="btn_done">Done</button>
+    </div>
+  </div>
+
+  <!-- SYNC -->
+  <div class="tpanel" id="tp-sync">
+    <p style="font-size:13px;color:var(--mu);margin-bottom:14px;line-height:1.6" data-i18n="sync_desc">Connect Supabase for sync.</p>
+    <div class="frow"><label data-i18n="lbl_sb_url">Project URL</label><input type="text" id="sb-url" placeholder="https://xxxx.supabase.co"></div>
+    <div class="frow"><label data-i18n="lbl_sb_key">Anon Key</label><div class="key-row"><input type="password" id="sb-key" placeholder="eyJ…"><button class="eye-btn" onclick="document.getElementById('sb-key').type=document.getElementById('sb-key').type==='password'?'text':'password'">👁</button></div></div>
+    <div class="frow"><label data-i18n="lbl_sb_uid">User ID</label><input type="text" id="sb-uid" placeholder="any unique string"></div>
+    <div class="key-status" id="sb-status"></div>
+    <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
+      <button class="btn-acc" onclick="saveSB()" data-i18n="btn_connect">Connect</button>
+      <button class="btn-sm" onclick="testSB()" data-i18n="btn_test">Test</button>
+      <button class="btn-sm" onclick="clearSB()" data-i18n="btn_disconnect">Disconnect</button>
+    </div>
+  </div>
+
+  <!-- TOPICS -->
+  <div class="tpanel" id="tp-topics">
+    <p style="font-size:13px;color:var(--mu);margin-bottom:14px;line-height:1.6" data-i18n="topic_desc">Reset memory here.</p>
+    <div id="topics-list"></div>
+    <div style="display:flex;gap:8px;margin-top:4px">
+      <button class="btn-sm" onclick="renderTopics()" style="font-size:12px" data-i18n="btn_refresh">↺ Refresh</button>
+      <button class="btn-sm" style="color:var(--red);border-color:var(--red);font-size:12px" onclick="clearAllTopics()" data-i18n="btn_clr_all">🗑 Clear All</button>
+    </div>
+  </div>
+ </div>
+</div>
+
+<!-- HOME -->
+<div id="scr-home" class="scr show">
+  <div id="warn-no-key" class="alert alert-info show" style="margin-bottom:13px" data-i18n="warn_no_key">
+    ⚙️ No AI configured — click settings to add a key.
+  </div>
+  <div class="rec-banner" id="rec-banner">
+    <div style="flex:1"><strong data-i18n="rec_resume">Resume session?</strong> <span id="rec-desc"></span></div>
+    <button class="btn-acc" onclick="doResume()" data-i18n="btn_resume">Resume</button>
+    <button class="btn-sm" onclick="dismissRec()" data-i18n="btn_discard">Discard</button>
+  </div>
+  <div class="card">
+    <div style="font-family:'DM Serif Display',serif;font-size:28px;line-height:1.2;letter-spacing:-.3px;margin-bottom:6px" data-i18n="home_hero">
+      Test your knowledge on <em style="color:var(--acc);font-style:italic">anything.</em>
+    </div>
+    <p style="color:var(--mu);font-size:13px;margin-bottom:19px;line-height:1.6" data-i18n="home_sub">Enter a topic, select a mode, and AI crafts questions for you.</p>
+    <div id="home-err" class="alert alert-err" style="margin-bottom:13px"></div>
+    <div class="frow">
+      <label data-i18n="lbl_topic">Topic / Reasoning / Grammar / Exam</label>
+      <input type="text" id="topic-inp" placeholder="..." maxlength="200" data-i18n-ph="topic_ph">
+    </div>
+    <div class="frow">
+      <label data-i18n="lbl_mode">Select Mode</label>
+      <div class="mode-grid">
+        <button class="mcard active" data-mode="practice" onclick="pickMode(this)">
+          <div class="mcard-ico">📖</div>
+          <div class="mcard-title" data-i18n="m_prac_title">Practice</div>
+          <div class="mcard-desc" data-i18n="m_prac_desc">Difficulty climbs as you improve.</div>
+        </button>
+        <button class="mcard" data-mode="test" onclick="pickMode(this)">
+          <div class="mcard-ico">🏆</div>
+          <div class="mcard-title" data-i18n="m_test_title">Test</div>
+          <div class="mcard-desc" data-i18n="m_test_desc">Fixed countdown, report at end.</div>
+        </button>
+      </div>
+    </div>
+    <div id="test-cfg" style="display:none;margin-bottom:15px">
+      <div class="two-col">
+        <div class="frow" style="margin-bottom:0">
+          <label data-i18n="lbl_t_num">Questions</label>
+          <input type="number" id="t-num" value="20" min="5" max="200">
+        </div>
+        <div class="frow" style="margin-bottom:0">
+          <label data-i18n="lbl_t_mins">Time (mins)</label>
+          <input type="number" id="t-mins" value="30" min="5" max="120">
+        </div>
+      </div>
+    </div>
+    <button class="btn-pri" onclick="startSession()" data-i18n="btn_start">Start Session →</button>
+  </div>
+</div>
+
+<!-- LOADING -->
+<div id="scr-load" class="scr">
+  <div class="card" style="text-align:center;padding:60px 20px">
+    <div class="dots"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>
+    <div style="font-family:'DM Serif Display',serif;font-size:21px;margin-bottom:5px" data-i18n="load_title">Preparing your session</div>
+    <div style="color:var(--mu);font-size:13px" data-i18n="load_sub">This may take a moment</div>
+  </div>
+  <div style="text-align:center;margin-top:10px">
+    <button class="btn-sm" onclick="cancelLoad()" data-i18n="btn_cancel">Cancel</button>
+  </div>
+</div>
+
+<!-- PRACTICE -->
+<div id="scr-practice" class="scr">
+  <div class="pmeta">
+    <span class="ptopic" id="pr-topic"></span>
+    <div style="display:flex;gap:6px;align-items:center">
+      <span id="pr-pill" class="dpill"></span>
+      <button class="btn-sm" onclick="confirmEnd('practice')" data-i18n="btn_end">✕ End</button>
+    </div>
+  </div>
+  <div class="diff-bar">
+    <span class="diff-bar-lbl" data-i18n="lbl_diff">Difficulty</span>
+    <div class="diff-bar-track"><div class="diff-bar-fill" id="diff-fill" style="width:0%"></div></div>
+    <span class="diff-bar-r" id="diff-r"></span>
+  </div>
+  <div class="sec-banner">
+    <strong id="sec-lbl"></strong>
+    <span class="sec-banner-hint" id="sec-hint"></span>
+    <span class="sec-banner-r" id="sec-prog"></span>
+  </div>
+  <div id="pr-qlist" class="qlist"></div>
+  <div id="pr-sec-score" class="sec-score" style="display:none">
+    <span data-i18n="lbl_sec_score">Section:</span>&nbsp;<strong id="pr-sv"></strong>
+  </div>
+  <div class="pnav">
+    <span class="pnav-info" id="pr-nav-info"></span>
+    <button class="btn-acc" id="pr-next" onclick="nextSection()" style="display:none" data-i18n="btn_next_sec">Next Section →</button>
+  </div>
+</div>
+
+<!-- END SESSION -->
+<div id="scr-end" class="scr">
+  <div class="card">
+    <div class="end-wrap">
+      <div class="end-ico">📚</div>
+      <div class="end-title" id="end-title"></div>
+      <div class="end-msg" id="end-msg"></div>
+      <div class="end-btns">
+        <button class="btn-acc" onclick="restartTopic()" data-i18n="btn_retry">Try Again</button>
+        <button class="btn-sm" onclick="goHome()" data-i18n="btn_new">New Topic</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- TEST -->
+<div id="scr-test" class="scr">
+  <div class="test-hdr">
+    <span class="test-topic" id="test-topic"></span>
+    <div style="display:flex;align-items:center;gap:7px">
+      <div class="timer-box" id="timer-box">⏱ <span id="timer-disp">--:--</span></div>
+      <button class="btn-sm" onclick="confirmEnd('test')" data-i18n="btn_end">✕ End</button>
+    </div>
+  </div>
+  <div class="tpbar"><div class="tpbar-fill" id="tpbar-fill" style="width:100%"></div></div>
+  <div class="prog-row" id="prog-row"></div>
+  <div class="card">
+    <div class="tq-num" id="tq-num"></div>
+    <div class="tq-text" id="tq-text"></div>
+    <div class="choices" id="tq-choices"></div>
+    <div class="test-nav">
+      <span class="test-ctr" id="tq-ctr"></span>
+      <div style="display:flex;gap:7px">
+        <button class="btn-sm" id="btn-skip" onclick="testSkip()" data-i18n="btn_skip">Skip</button>
+        <button class="btn-acc" id="btn-next-t" onclick="testNext()" style="display:none" data-i18n="btn_next">Next →</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- RESULTS -->
+<div id="scr-results" class="scr">
+  <div class="card">
+    <div class="res-hero">
+      <div class="res-ring"><div class="res-pct" id="res-pct"></div><div class="res-lbl" data-i18n="lbl_score_pct">Score</div></div>
+      <div class="res-title" id="res-title"></div>
+      <div class="res-sub" id="res-sub"></div>
+    </div>
+    <div class="stats-grid">
+      <div class="sbox"><div class="snum" style="color:var(--grn)" id="res-cor"></div><div class="slbl" data-i18n="lbl_cor">Correct</div></div>
+      <div class="sbox"><div class="snum" style="color:var(--red)" id="res-wrg"></div><div class="slbl" data-i18n="lbl_wrg">Wrong</div></div>
+      <div class="sbox"><div class="snum" style="color:var(--amb)" id="res-skp"></div><div class="slbl" data-i18n="lbl_skp">Skipped</div></div>
+      <div class="sbox"><div class="snum" id="res-time"></div><div class="slbl" data-i18n="lbl_time">Time</div></div>
+    </div>
+    <div class="hdiv"></div>
+    <div class="sw-head" data-i18n="lbl_str">💪 Strengths</div><div class="tag-list" id="res-str"></div>
+    <div class="sw-head" data-i18n="lbl_wk">📌 Areas to Review</div><div class="tag-list" id="res-wk"></div>
+    <div class="hdiv"></div>
+    <div class="coll-hdr" onclick="toggleRev()"><h3 data-i18n="lbl_rev">📋 Question Review</h3><span id="rev-ch">▼</span></div>
+    <div class="coll-body" id="rev-body"><div id="rev-list" style="margin-top:7px"></div></div>
+    <div class="res-actions">
+      <button class="btn-pri" onclick="retryTest()" data-i18n="btn_retry_topic">🔁 Retry Topic</button>
+      <button class="btn-sm" onclick="goHome()" data-i18n="btn_new">+ New Topic</button>
+    </div>
+  </div>
+</div>
+
+<!-- NOTES -->
+<div id="scr-notes" class="scr">
+  <div class="card">
+    <div style="font-family:'DM Serif Display',serif;font-size:24px;margin-bottom:5px" data-i18n="notes_title">Notes → Q&A</div>
+    <p style="color:var(--mu);font-size:13px;margin-bottom:16px;line-height:1.6" data-i18n="notes_sub">Upload notes and AI extracts Q&A pairs.</p>
+    <div id="notes-err" class="alert alert-err" style="margin-bottom:13px"></div>
+    <div class="upload-zone" id="upload-zone" onclick="document.getElementById('file-inp').click()" ondragover="dragOver(event)" ondragleave="dragLeave(event)" ondrop="dropFile(event)">
+      <div class="uz-ico">📎</div>
+      <div class="uz-title" id="uz-title" data-i18n="uz_title">Tap to upload or drag a file</div>
+      <div class="uz-sub" data-i18n="uz_sub">PDF · Word · Image</div>
+    </div>
+    <input type="file" id="file-inp" style="display:none" accept=".pdf,.docx,.doc,.txt,.png,.jpg,.jpeg,.webp" onchange="fileSelected(event)">
+    <div class="chips" id="chips"></div>
+    <div class="frow"><label data-i18n="lbl_paste">Or paste text directly</label><textarea id="paste-txt" placeholder="..." data-i18n-ph="paste_ph"></textarea></div>
+    <div class="two-col" style="margin-bottom:14px">
+      <div class="frow" style="margin-bottom:0"><label data-i18n="lbl_qna_cnt">Q&A pairs</label>
+        <select id="notes-count"><option value="10">10</option><option value="20" selected>20</option><option value="30">30</option><option value="50">50</option></select></div>
+      <div class="frow" style="margin-bottom:0"><label data-i18n="lbl_focus">Focus</label>
+        <select id="notes-focus"><option value="key concepts">Key Concepts</option><option value="definitions">Definitions</option><option value="facts and dates">Facts &amp; Dates</option><option value="processes and steps">Processes &amp; Steps</option></select></div>
+    </div>
+    <button class="btn-pri" id="gen-notes-btn" onclick="genNotes()" data-i18n="btn_gen_notes">Generate Q&A Notes →</button>
+  </div>
+  <div class="qna-out" id="qna-out">
+    <div class="card">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:8px">
+        <div style="font-family:'DM Serif Display',serif;font-size:17px" data-i18n="gen_notes_title">Generated Q&A Notes</div>
+        <div style="display:flex;gap:8px">
+          <button class="btn-grn" onclick="downloadNotesPDF()" data-i18n="btn_pdf">⬇ PDF</button>
+          <button class="btn-sm" onclick="clearNotes()" data-i18n="btn_clr">Clear</button>
+        </div>
+      </div>
+      <div class="notes-stats" id="notes-stats"></div>
+      <div id="qna-list"></div>
+    </div>
+  </div>
+</div>
+
+</div><!-- /wrap -->
+
+<script>
+  'use strict';
+
+// ── DIFFICULTY CONSTANTS ──
+const LVL_EN = [
+  'Foundational', 
+  'Elementary', 
+  'Intermediate', 
+  'Upper-Intermediate', 
+  'Advanced', 
+  'Expert', 
+  'Master'
+];
+
+// Optional: Descriptive text used to guide the AI for each level
+const LVL_P = [
+  'basic definitions and facts', 
+  'concept connections', 
+  'applied reasoning', 
+  'multi-step problems', 
+  'synthesis and edge cases', 
+  'expert-level nuanced detail', 
+  'professional certification level'
+];
+
+// ── I18N DATA ──
+const I18N = {
+  en: {
+    app_title: "QuizForge", app_sub: "AI-powered adaptive MCQ engine",
+    set_title: "AI Settings", set_sub: "Keys are saved only in this browser and sent only to your AI provider.",
+    tab_prov: "Provider", tab_mdl: "Model", tab_key: "API Key", tab_sync: "☁ Sync", tab_topic: "📚 Topics",
+    btn_next_mdl: "Next: Choose Model →", btn_next_key: "Next: API Key →",
+    lbl_sel_mdl: "Select Model", lbl_custom: "Custom model name", btn_save: "Save Model", btn_clr: "Clear", btn_done: "Done",
+    sync_desc: "Connect Supabase for sync.", lbl_sb_url: "Project URL", lbl_sb_key: "Anon Key", lbl_sb_uid: "User ID",
+    btn_connect: "Connect", btn_test: "Test", btn_disconnect: "Disconnect",
+    topic_desc: "Reset any topic's memory here.", btn_refresh: "↺ Refresh", btn_clr_all: "🗑 Clear All",
+    warn_no_key: "⚙️ No AI configured — click settings to add a key.",
+    rec_resume: "Resume session?", btn_resume: "Resume", btn_discard: "Discard",
+    home_hero: "Test your knowledge on anything.", home_sub: "Enter a topic, select a mode, and AI crafts questions for you.",
+    lbl_topic: "Topic", topic_ph: "e.g. Photosynthesis, JavaScript, History...",
+    lbl_mode: "Select Mode", m_prac_title: "Practice", m_prac_desc: "Difficulty climbs as you improve.",
+    m_test_title: "Test", m_test_desc: "Fixed countdown, report at end.",
+    lbl_t_num: "Questions", lbl_t_mins: "Time (mins)", btn_start: "Start Session →",
+    load_title: "Preparing your session", load_sub: "This may take a moment", btn_cancel: "Cancel",
+    btn_end: "✕ End", lbl_diff: "Difficulty", lbl_sec_score: "Section:", btn_next_sec: "Next Section →",
+    btn_retry: "Try Again", btn_new: "New Topic", btn_skip: "Skip", btn_next: "Next →",
+    lbl_score_pct: "Score", lbl_cor: "Correct", lbl_wrg: "Wrong", lbl_skp: "Skipped", lbl_time: "Time",
+    lbl_str: "💪 Strengths", lbl_wk: "📌 Areas to Review", lbl_rev: "📋 Question Review", btn_retry_topic: "🔁 Retry Topic",
+    notes_title: "Notes → Q&A", notes_sub: "Upload notes and the AI extracts key Q&A pairs.",
+    uz_title: "Tap to upload or drag a file", uz_sub: "PDF · Word · Image", lbl_paste: "Or paste text directly", paste_ph: "Paste your notes here...",
+    lbl_qna_cnt: "Q&A pairs", lbl_focus: "Focus", btn_gen_notes: "Generate Q&A Notes →", gen_notes_title: "Generated Q&A Notes", btn_pdf: "⬇ PDF",
+    ans_correct: "✅ Correct!", ans_wrong: "❌ Incorrect"
+  },
+  hi: {
+    app_title: "क्विज़फोर्ज", app_sub: "AI-संचालित अनुकूली MCQ इंजन",
+    set_title: "AI सेटिंग्स", set_sub: "कुंजियाँ केवल इसी ब्राउज़र में सुरक्षित हैं।",
+    tab_prov: "प्रदाता", tab_mdl: "मॉडल", tab_key: "API कुंजी", tab_sync: "☁ सिंक", tab_topic: "📚 विषय",
+    btn_next_mdl: "अगला: मॉडल चुनें →", btn_next_key: "अगला: API कुंजी →",
+    lbl_sel_mdl: "मॉडल चुनें", lbl_custom: "कस्टम मॉडल का नाम", btn_save: "सुरक्षित करें", btn_clr: "साफ़ करें", btn_done: "हो गया",
+    sync_desc: "सिंक के लिए Supabase कनेक्ट करें।", lbl_sb_url: "प्रोजेक्ट URL", lbl_sb_key: "अनाम कुंजी", lbl_sb_uid: "यूज़र आईडी",
+    btn_connect: "कनेक्ट करें", btn_test: "परीक्षण", btn_disconnect: "डिस्कनेक्ट करें",
+    topic_desc: "किसी भी विषय की मेमोरी रीसेट करें।", btn_refresh: "↺ रिफ्रेश", btn_clr_all: "🗑 सभी साफ़ करें",
+    warn_no_key: "⚙️ AI कॉन्फ़िगर नहीं — पहले API कुंजी जोड़ें।",
+    rec_resume: "सत्र फिर से शुरू करें?", btn_resume: "शुरू करें", btn_discard: "हटाएं",
+    home_hero: "किसी भी विषय पर अपने ज्ञान का परीक्षण करें।", home_sub: "एक विषय लिखें, मोड चुनें, और AI प्रश्न तैयार करेगा।",
+    lbl_topic: "विषय", topic_ph: "जैसे: प्रकाश संश्लेषण, जावास्क्रिप्ट, इतिहास...",
+    lbl_mode: "मोड चुनें", m_prac_title: "अभ्यास", m_prac_desc: "जैसे-जैसे आप सुधार करेंगे, कठिनाई बढ़ेगी।",
+    m_test_title: "परीक्षण", m_test_desc: "निश्चित समय, अंत में रिपोर्ट।",
+    lbl_t_num: "प्रश्नों की संख्या", lbl_t_mins: "समय (मिनट)", btn_start: "सत्र शुरू करें →",
+    load_title: "सत्र तैयार किया जा रहा है", load_sub: "इसमें थोड़ा समय लग सकता है", btn_cancel: "रद्द करें",
+    btn_end: "✕ समाप्त", lbl_diff: "कठिनाई", lbl_sec_score: "अनुभाग:", btn_next_sec: "अगला अनुभाग →",
+    btn_retry: "पुनः प्रयास करें", btn_new: "नया विषय", btn_skip: "छोड़ें", btn_next: "अगला →",
+    lbl_score_pct: "स्कोर", lbl_cor: "सही", lbl_wrg: "गलत", lbl_skp: "छोड़ा गया", lbl_time: "समय",
+    lbl_str: "💪 ताकत", lbl_wk: "📌 समीक्षा के क्षेत्र", lbl_rev: "📋 प्रश्न समीक्षा", btn_retry_topic: "🔁 विषय दोहराएं",
+    notes_title: "नोट्स → Q&A", notes_sub: "नोट्स अपलोड करें और AI महत्वपूर्ण प्रश्न-उत्तर निकालेगा।",
+    uz_title: "अपलोड करने के लिए टैप करें या फाइल खींचें", uz_sub: "PDF · वर्ड · इमेज", lbl_paste: "या सीधे टेक्स्ट पेस्ट करें", paste_ph: "अपने नोट्स यहाँ पेस्ट करें...",
+    lbl_qna_cnt: "Q&A जोड़े", lbl_focus: "फोकस", btn_gen_notes: "Q&A नोट्स जेनरेट करें →", gen_notes_title: "जेनरेट किए गए Q&A नोट्स", btn_pdf: "⬇ PDF",
+    ans_correct: "✅ सही!", ans_wrong: "❌ गलत!"
+  }
+};
+
+let lang = localStorage.getItem('qf_lang') || 'en';
+
+// ── APP STATE ──
+const S = {
+  topic: '', mode: 'practice',
+  pLevel: 1, pQ: [], pAns: 0, pCor: 0, pUsed: [],
+  tQ: [], tCur: 0, tAns: [], tTotal: 0, tLeft: 0, tTimer: null, tStartTime: 0,
+  _abort: false,
+  notesText: ''
+};
+
+// ── STORAGE ──
+let CFG = { provider: 'gemini', models: {}, keys: {} };
+function cfgLoad() {
+  try { const r = localStorage.getItem('qf_cfg'); if (r) CFG = JSON.parse(r); } catch(e) {}
+  updateBadge();
+}
+function cfgSave() { localStorage.setItem('qf_cfg', JSON.stringify(CFG)); }
+function hasKey() { 
+  const p = PROV[CFG.provider];
+  return p && CFG.keys[p.kname] && CFG.keys[p.kname].length > 5;
+}
+
+// ── PROVIDERS ──
+const PROV = {
+  gemini: {
+    name: 'Google Gemini', kname: 'gk', badge: 'pb-g', blabel: '🔵 Gemini',
+    models: [{id:'gemini-1.5-flash', label:'Gemini 1.5 Flash'}, {id:'gemini-1.5-pro', label:'Gemini 1.5 Pro'}],
+    def: 'gemini-1.5-flash',
+    async call(key, model, prompt, sysMsg) {
+      const url = `https://generativelanguage.googleapis.com/v1/models/${model}:generateContent?key=${key}`;
+      const fullPrompt = `${sysMsg}\n\nUSER REQUEST: ${prompt}`;
+      const r = await fetch(url, {
+        method: 'POST', headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({ contents: [{parts: [{text: fullPrompt}]}] })
+      });
+      const d = await r.json();
+      if (d.error) throw new Error(d.error.message);
+      if (!d.candidates || !d.candidates[0]) throw new Error("No response. Check API key/Model ID.");
+      return d.candidates[0].content.parts[0].text;
+    }
+  },
+  openai: {
+    name: 'OpenAI', kname: 'ok', badge: 'pb-o', blabel: '🟢 ChatGPT',
+    models: [{id:'gpt-4o-mini', label:'GPT-4o Mini'}, {id:'gpt-4o', label:'GPT-4o'}],
+    def: 'gpt-4o-mini',
+    async call(key, model, prompt, sysMsg) {
+      const r = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST', headers: {'Content-Type':'application/json', 'Authorization':`Bearer ${key}`},
+        body: JSON.stringify({ model, messages: [{role:'system', content:sysMsg}, {role:'user', content:prompt}] })
+      });
+      const d = await r.json();
+      if (d.error) throw new Error(d.error.message);
+      return d.choices[0].message.content;
+    }
+  },
+  groq: {
+    name: 'Groq', kname: 'qk', badge: 'pb-q', blabel: '⚡ Groq',
+    models: [{id:'llama-3.3-70b-versatile', label:'Llama 3.3 70B'}],
+    def: 'llama-3.3-70b-versatile',
+    async call(key, model, prompt, sysMsg) {
+      const r = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+        method: 'POST', headers: {'Content-Type':'application/json', 'Authorization':`Bearer ${key}`},
+        body: JSON.stringify({ model, messages: [{role:'system', content:sysMsg}, {role:'user', content:prompt}] })
+      });
+      const d = await r.json();
+      if (d.error) throw new Error(d.error.message);
+      return d.choices[0].message.content;
+    }
+  },
+  deepseek: {
+    name: 'DeepSeek', kname: 'dk', badge: 'pb-d', blabel: '🐳 DeepSeek',
+    models: [{id:'deepseek-chat', label:'DeepSeek-V3'}],
+    def: 'deepseek-chat',
+    async call(key, model, prompt, sysMsg) {
+      const r = await fetch('https://api.deepseek.com/chat/completions', {
+        method: 'POST', headers: {'Content-Type':'application/json', 'Authorization':`Bearer ${key}`},
+        body: JSON.stringify({ model, messages: [{role:'system', content:sysMsg}, {role:'user', content:prompt}] })
+      });
+      const d = await r.json();
+      if (d.error) throw new Error(d.error.message);
+      return d.choices[0].message.content;
+    }
+  }
+};
+
+// ── CORE ENGINE ──
+async function aiJSON(prompt) {
+  const p = PROV[CFG.provider];
+  const model = CFG.models[CFG.provider] || p.def;
+  const key = CFG.keys[p.kname];
+
+  // 1. Start the Console Group and Timer
+  console.group(`%c🚀 API CALL: ${CFG.provider.toUpperCase()}`, "color: #c94f2a; font-weight: bold;");
+  console.log(`Model: %c${model}`, "color: #2a6ec9; font-weight: bold;");
+  console.log(`Full Prompt:`, prompt); // Log the full prompt for debugging repetition
+  console.time("⏱ API Response Time"); 
+
+  const sysMsg = `You are a professional tutor. You MUST generate all content in ${lang === 'hi' ? 'Hindi' : 'English'}. Return ONLY a JSON array. Format: [{"q":"?", "opts":["a","b","c","d"], "ans":0, "why":"...", "kw":["keyword1","keyword2"]}]`;
+  
+  try {
+    // 2. Perform the API call
+    const txt = await p.call(key, model, prompt, sysMsg);
+    
+    // 3. Log Success and the Raw Response
+    console.timeEnd("⏱ API Response Time");
+    console.log("%c✅ RAW RESPONSE RECEIVED:", "color: #1f9c5c; font-weight: bold;", txt);
+
+    const clean = txt.replace(/```json|```/g, "").trim();
+    const match = clean.match(/\[[\s\S]*\]/);
+    
+    if (!match) {
+      throw new Error("AI returned text/markdown instead of a JSON array.");
+    }
+
+    const parsedData = JSON.parse(match[0]);
+    
+    // 4. Log the Final Parsed Data
+    console.log("📦 PARSED JSON:", parsedData);
+    console.groupEnd(); // Close the console group
+    
+    return parsedData;
+
+  } catch (err) {
+    // 5. Log Failure and clean up the console state
+    console.timeEnd("⏱ API Response Time");
+    console.error("%c❌ API CALL FAILED:", "color: #c9392a; font-weight: bold;", err.message);
+    console.groupEnd(); // Ensure the group is closed even on error
+    throw err; // Re-throw so the UI (loadPractice) can show the alert
+  }
+}
+
+// --- CONSOLIDATED START SESSION ---
+async function startSession() {
+  const topic = document.getElementById('topic-inp').value.trim();
+  if (!topic) return alert("Enter topic");
+  if (!hasKey()) return openSettings('provider');
+
+  S.topic = topic;
+  S._abort = false;
+  S.triggerCelebration = false; // Reset celebration state for new session
+  
+  // RESUME: Calculate Level based on 50-question milestones
+  const mem = memGet(topic);
+  const totalCor = mem.totalCorrect || 0;
+  S.pLevel = Math.min(7, Math.floor(totalCor / 50) + 1);
+  
+  console.log(`%c📊 Resuming ${topic}: ${totalCor} correct, Stealth Level ${S.pLevel}`, "color: #2a6ec9");
+
+  const activeMode = document.querySelector('.mcard.active');
+  S.mode = activeMode ? activeMode.dataset.mode : 'practice';
+
+  if (S.mode === 'practice') loadPractice();
+  else loadTest();
+}
+
+// --- MEMORY UTILITIES ---
+const MEM_KEY = 'qf_mem_v1';
+
+// 1. Load the entire memory object from localStorage
+function memLoad() { 
+  try { 
+    return JSON.parse(localStorage.getItem(MEM_KEY) || '{}'); 
+  } catch(e) { 
+    return {}; 
+  } 
+}
+
+// 2. Save the entire memory object to localStorage
+function memSave(m) { 
+  try { 
+    localStorage.setItem(MEM_KEY, JSON.stringify(m)); 
+  } catch(e) {
+    console.error("Failed to save to localStorage", e);
+  } 
+}
+
+// 3. Get data for a specific topic (or return a default empty structure)
+function memGet(topic) { 
+  const m = memLoad(); 
+  return m[topic] || { fps: [], count: 0, last: '', level: 1, knownFacts: {} }; 
+}
+
+// 4. Clear memory for a specific topic (Optional but useful for the UI)
+function memClear(topic) { 
+  const m = memLoad(); 
+  delete m[topic]; 
+  memSave(m); 
+}
+
+async function loadPractice() {
+  if (S._abort) return;
+  show('scr-load');
+
+  const batchSize = 10;
+  const mem = memGet(S.topic);
+  const masteredList = Object.entries(mem.knownFacts || {})
+    .map(([k, v]) => `- [${k.split('|').join(', ')}] -> ${v}`)
+    .join('\n');
+
+  // This prompt turns the AI into a "Dynamic Content Architect"
+  const prompt = `
+    Analyze the user's request: "${S.topic}"
+    
+    1. INTENT: Is this a factual topic, a reasoning problem, a language test, or a specific exam prep (e.g. UPSC, CBSE, State Boards, Professional Certs)?
+    2. FORMAT: 
+       - If it's Reasoning/Math: Provide a "Problem Scenario" first.
+       - If it's English/Comprehension: Provide a "Reading Passage" first.
+       - If it's a specific Exam: Use that exam's typical complexity (e.g., multi-statement questions for high-level civil services).
+       - If it's just a Topic: Provide conceptual MCQs.
+    
+    3. TASK: Generate exactly ${batchSize} MCQs.
+    4. DIFFICULTY: ${LVL_EN[S.pLevel-1]}.
+    
+    CRITICAL: 
+    - Put any Scenarios/Passages at the top of the "q" field.
+    - Avoid these mastered associations:
+    ${masteredList || "None yet."}
+    
+    Output JSON array: [{"q":"?", "opts":["a","b","c","d"], "ans":0, "why":"...", "kw":["key1","key2"]}]
+  `;
+
+  try {
+    const raw = await aiJSON(prompt);
+    S.pQ = raw.map(normQ);
+    S.pAns = 0; S.pCor = 0;
+    renderPractice();
+    show('scr-practice');
+  } catch(e) {
+    alert("Error: " + e.message);
+    goHome();
+  }
+}
+
+function renderPractice() {
+  document.getElementById('pr-topic').textContent = S.topic;
+  document.getElementById('pr-pill').textContent = "Level " + S.pLevel;
+  document.getElementById('pr-pill').className = `dpill dp-${S.pLevel}`;
+  document.getElementById('diff-fill').style.width = (S.pLevel/7*100)+'%';
+  
+  const list = document.getElementById('pr-qlist');
+  list.innerHTML = '';
+  S.pQ.forEach((q, i) => {
+    const div = document.createElement('div');
+    div.className = 'qblock';
+    div.innerHTML = `
+      <div class="qtext">${esc(q.question)}</div>
+      <div class="choices">${q.options.map((o, oi) => `
+        <button class="cbtn" onclick="pAns(${i}, ${oi}, this)">
+          <span class="clbl">${String.fromCharCode(65+oi)}</span><span>${esc(o)}</span>
+        </button>`).join('')}</div>
+      <div class="expl" id="ex-${i}">${esc(q.explanation)}</div>
+      
+      <!-- Learn More Section -->
+      <button class="lm-btn" id="lm-btn-${i}" style="display:none" onclick="toggleLM(${i})">💡 Learn More / Dispute</button>
+      <div class="lm-panel" id="lm-panel-${i}">
+        <div class="lm-panel-hint">Doubtful? Ask AI for a deeper explanation:</div>
+        <textarea id="lm-input-${i}" placeholder="Why is this the answer? / I think option B is also correct because..."></textarea>
+        <div class="lm-panel-actions">
+           <button class="btn-acc" onclick="submitLM(${i})">Ask AI</button>
+        </div>
+        <div class="lm-result" id="lm-res-${i}"></div>
+      </div>
+    `;
+    list.appendChild(div);
+  });
+  document.getElementById('pr-next').style.display = 'none';
+}
+
+function pAns(qi, sel, btn) {
+  const q = S.pQ[qi];
+  const isCorrect = (sel === q.correct);
+  
+  if (isCorrect) {
+    let mem = memGet(S.topic);
+    if (!mem.knownFacts) mem.knownFacts = {};
+    
+    // Save Fact Association
+    const factKey = (q.kw || []).map(k => String(k).toLowerCase().trim()).sort().join('|');
+    if (factKey) mem.knownFacts[factKey] = String(q.options[q.correct]).toLowerCase().trim();
+
+    // Track Milestone Progress
+    mem.totalCorrect = (mem.totalCorrect || 0) + 1;
+    
+    // Trigger Celebration every 50 correct answers
+    if (mem.totalCorrect > 0 && mem.totalCorrect % 50 === 0 && S.pLevel < 7) {
+      S.triggerCelebration = true;
+    }
+
+    const allMem = memLoad();
+    allMem[S.topic] = mem;
+    memSave(allMem);
+  }
+
+  // UI Updates
+  const parent = btn.parentElement;
+  if (parent.classList.contains('dis')) return;
+  parent.classList.add('dis');
+  const btns = parent.querySelectorAll('.cbtn');
+  btns.forEach((b, i) => {
+    if (i === q.correct) b.classList.add('cor');
+    else if (i === sel) b.classList.add('wrg');
+  });
+
+  document.getElementById(`ex-${qi}`).classList.add('show');
+  document.getElementById(`lm-btn-${qi}`).style.display = 'inline-flex';
+  
+  S.pAns++;
+  if (isCorrect) S.pCor++;
+  if (S.pAns === S.pQ.length) document.getElementById('pr-next').style.display = 'block';
+}
+
+function nextSection() {
+  if (S.triggerCelebration) {
+    // Pick random animation: 0 (Glitter), 1 (Stars), 2 (Pulse)
+    runCelebration(Math.floor(Math.random() * 3));
+    S.triggerCelebration = false;
+  }
+  loadPractice();
+}
+
+function runCelebration(type) {
+  const wrap = document.getElementById('celebration-wrap');
+  wrap.innerHTML = '';
+  wrap.style.display = 'block';
+  
+  if (type === 0) { // GLITTER KABOOM
+    const colors = ['#c94f2a', '#2a6ec9', '#1f9c5c', '#c97f2a'];
+    for (let i = 0; i < 100; i++) {
+      const d = document.createElement('div');
+      d.className = 'part-glitter';
+      d.style.background = colors[Math.floor(Math.random()*4)];
+      d.style.left = '50%'; d.style.top = '50%';
+      const a = Math.random() * Math.PI * 2;
+      const dist = 100 + Math.random() * 300;
+      d.style.setProperty('--tx', `${Math.cos(a)*dist}px`);
+      d.style.setProperty('--ty', `${Math.sin(a)*dist}px`);
+      wrap.appendChild(d);
+    }
+  } 
+  else if (type === 1) { // STAR RAIN
+    for (let i = 0; i < 40; i++) {
+      const s = document.createElement('div');
+      s.className = 'part-star';
+      s.textContent = '⭐';
+      s.style.left = Math.random() * 100 + 'vw';
+      s.style.animationDelay = Math.random() * 1.5 + 's';
+      wrap.appendChild(s);
+    }
+  } 
+  else { // POWER PULSE
+    for (let i = 0; i < 3; i++) {
+      const p = document.createElement('div');
+      p.className = 'pulse-ring';
+      p.style.animationDelay = (i * 0.3) + 's';
+      wrap.appendChild(p);
+    }
+  }
+
+  setTimeout(() => { wrap.style.display = 'none'; }, 3000);
+}
+
+// ── TEST MODE ──
+async function loadTest() {
+  show('scr-load');
+  const num = document.getElementById('t-num').value || 20;
+  
+  const prompt = `
+    Analyze user request: "${S.topic}"
+    Generate ${num} professional MCQs. 
+    ADAPT: If the user specified an exam (e.g. JEE, NEET, Bank PO, HPSC, State Board), mimic that exam's specific style and difficulty distribution.
+    If Reasoning or English is mentioned, provide the necessary scenarios/passages inside the "q" field.
+  `;
+  
+  try {
+    const raw = await aiJSON(prompt);
+    S.tQ = raw.map(normQ);
+    S.tCur = 0; S.tTotal = S.tQ.length;
+    S.tAns = new Array(S.tTotal).fill(null);
+    S.tLeft = (document.getElementById('t-mins').value || 30) * 60;
+    S.tStartTime = Date.now();
+    startTimer();
+    renderTestQ();
+    show('scr-test');
+  } catch(e) { alert(e.message); goHome(); }
+}
+
+function startTimer() {
+  if (S.tTimer) clearInterval(S.tTimer);
+  const disp = document.getElementById('timer-disp');
+  const box = document.getElementById('timer-box');
+  
+  S.tTimer = setInterval(() => {
+    S.tLeft--;
+    const m = Math.floor(S.tLeft / 60);
+    const s = S.tLeft % 60;
+    disp.textContent = `${m}:${s < 10 ? '0' : ''}${s}`;
+    
+    if (S.tLeft < 60) box.className = 'timer-box crit';
+    else if (S.tLeft < 300) box.className = 'timer-box warn';
+    
+    if (S.tLeft <= 0) finishTest();
+  }, 1000);
+}
+
+function renderTestQ() {
+  const q = S.tQ[S.tCur];
+  document.getElementById('test-topic').textContent = S.topic;
+  document.getElementById('tq-num').textContent = `Question ${S.tCur+1}`;
+  document.getElementById('tq-text').textContent = q.question;
+  const cont = document.getElementById('tq-choices');
+  cont.innerHTML = '';
+  q.options.forEach((o, i) => {
+    const btn = document.createElement('button');
+    btn.className = 'cbtn' + (S.tAns[S.tCur] === i ? ' active' : '');
+    if (S.tAns[S.tCur] === i) btn.style.borderColor = 'var(--acc)';
+    btn.innerHTML = `<span class="clbl">${String.fromCharCode(65+i)}</span><span>${esc(o)}</span>`;
+    btn.onclick = () => { S.tAns[S.tCur] = i; renderTestQ(); };
+    cont.appendChild(btn);
+  });
+  document.getElementById('btn-next-t').style.display = 'block';
+  document.getElementById('tq-ctr').textContent = `${S.tCur+1} / ${S.tTotal}`;
+}
+
+function testNext() {
+  if (S.tCur < S.tTotal - 1) {
+    S.tCur++;
+    renderTestQ();
+  } else {
+    finishTest();
+  }
+}
+
+function testSkip() {
+  testNext();
+}
+
+function finishTest() {
+  clearInterval(S.tTimer);
+  let cor = 0;
+  S.tQ.forEach((q, i) => { if (S.tAns[i] === q.correct) cor++; });
+  const pct = Math.round((cor / S.tTotal) * 100);
+  document.getElementById('res-pct').textContent = pct + '%';
+  document.getElementById('res-cor').textContent = cor;
+  document.getElementById('res-wrg').textContent = S.tTotal - cor;
+  document.getElementById('res-time').textContent = Math.floor((Date.now()-S.tStartTime)/60000)+'m';
+  show('scr-results');
+}
+
+// PRACTICE MODE AI DISPUTE/CLARIFICATIONS
+
+function toggleLM(i) {
+  const panel = document.getElementById(`lm-panel-${i}`);
+  panel.classList.toggle('show');
+}
+
+async function submitLM(i) {
+  const q = S.pQ[i];
+  const input = document.getElementById(`lm-input-${i}`).value.trim();
+  const resBox = document.getElementById(`lm-res-${i}`);
+  
+  if (!input) return alert("Please type your doubt first.");
+  
+  resBox.textContent = "Thinking...";
+  resBox.className = "lm-result show lm-checking";
+  
+  // Prompt for dispute/clarification
+  const prompt = `
+    Topic: ${S.topic}
+    Question: ${q.question}
+    Choices: ${q.options.join(', ')}
+    Correct Answer provided by you: ${q.options[q.correct]}
+    
+    User's Doubt/Dispute: "${input}"
+    
+    Task: Explain the concept clearly. If the user is right and your previous answer was potentially wrong, acknowledge it. Otherwise, explain exactly why the user's doubt is incorrect. Be concise but thorough.
+  `;
+
+  try {
+    const p = PROV[CFG.provider];
+    const model = CFG.models[CFG.provider] || p.def;
+    const key = CFG.keys[p.kname];
+    
+    // Call the provider's text interface (not JSON)
+    const response = await p.call(key, model, prompt, "You are a professional tutor providing a detailed clarification.");
+    
+    resBox.innerHTML = `<div class="lm-result-hdr">Tutor Explanation:</div>${esc(response)}`;
+    resBox.className = "lm-result show lm-confirmed"; // Using the green/neutral style
+  } catch (e) {
+    resBox.textContent = "Error: " + e.message;
+    resBox.className = "lm-result show lm-overturned"; // Using the red style
+  }
+}
+
+// ── NOTES (Q&A) MODULE ──
+function toggleNotes() {
+  const notesScr = document.getElementById('scr-notes');
+  // If notes is already showing, go back home. Otherwise, show notes.
+  if (notesScr.classList.contains('show')) {
+    goHome();
+  } else {
+    show('scr-notes');
+  }
+}
+
+async function fileSelected(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  document.getElementById('uz-title').textContent = file.name;
+  document.getElementById('upload-zone').classList.add('has-file');
+  
+  if (file.type === 'application/pdf') {
+    const reader = new FileReader();
+    reader.onload = async function() {
+      const typedarray = new Uint8Array(this.result);
+      const pdf = await pdfjsLib.getDocument(typedarray).promise;
+      let text = '';
+      for (let i = 1; i <= pdf.numPages; i++) {
+        const page = await pdf.getPage(i);
+        const content = await page.getTextContent();
+        text += content.items.map(item => item.str).join(' ') + '\n';
+      }
+      S.notesText = text;
+    };
+    reader.readAsArrayBuffer(file);
+  } else {
+    const reader = new FileReader();
+    reader.onload = function() { S.notesText = this.result; };
+    reader.readAsText(file);
+  }
+}
+
+async function genNotes() {
+  const paste = document.getElementById('paste-txt').value.trim();
+  const finalContent = paste || S.notesText;
+  if (!finalContent) return alert("Please upload a file or paste text.");
+  if (!hasKey()) return openSettings('provider');
+
+  const btn = document.getElementById('gen-notes-btn');
+  btn.disabled = true; btn.textContent = "Generating...";
+  
+  const count = document.getElementById('notes-count').value;
+  const focus = document.getElementById('notes-focus').value;
+  
+  const prompt = `Based on the following notes, generate exactly ${count} Q&A pairs focusing on ${focus}. 
+  Return ONLY a JSON array of objects: [{"q":"question", "a":"answer"}].
+  
+  NOTES:
+  ${finalContent.slice(0, 4000)}`;
+
+  try {
+    const data = await aiJSON(prompt);
+    const list = document.getElementById('qna-list');
+    list.innerHTML = '';
+    data.forEach(item => {
+      const div = document.createElement('div');
+      div.className = 'qna-block';
+      div.innerHTML = `<div class="qna-q">${esc(item.q)}</div><div class="qna-a">${esc(item.a)}</div>`;
+      list.appendChild(div);
+    });
+    document.getElementById('qna-out').style.display = 'block';
+    document.getElementById('notes-stats').textContent = `${data.length} pairs generated.`;
+  } catch(e) {
+    alert("Generation Failed: " + e.message);
+  } finally {
+    btn.disabled = false; btn.textContent = "Generate Q&A Notes →";
+  }
+}
+
+function clearNotes() {
+  document.getElementById('qna-out').style.display = 'none';
+  document.getElementById('paste-txt').value = '';
+  document.getElementById('uz-title').textContent = "Tap to upload or drag a file";
+  document.getElementById('upload-zone').classList.remove('has-file');
+  S.notesText = '';
+}
+
+// ── SETTINGS & UI ──
+function selProv(p) {
+  _mp = p; CFG.provider = p;
+  document.querySelectorAll('.prov-card').forEach(c => c.classList.remove('active'));
+  document.getElementById(`pc-${p}`).classList.add('active');
+  cfgSave();
+}
+
+function swTab(btn) {
+  const tab = btn.dataset.tab;
+  document.querySelectorAll('.mtab').forEach(b => b.classList.toggle('active', b === btn));
+  document.querySelectorAll('.tpanel').forEach(p => p.classList.toggle('show', p.id === `tp-${tab}`));
+  
+  if (tab === 'model') {
+    const p = PROV[CFG.provider];
+    const sel = document.getElementById('mdl-sel');
+    let html = p.models.map(m => `<option value="${m.id}">${m.label}</option>`).join('');
+    html += `<option value="custom">-- Custom Model ID --</option>`;
+    sel.innerHTML = html;
+
+    const saved = CFG.models[CFG.provider] || p.def;
+    const isStandard = p.models.some(m => m.id === saved);
+    if (isStandard) {
+      sel.value = saved;
+      document.getElementById('mdl-custom-wrap').style.display = 'none';
+    } else {
+      sel.value = 'custom';
+      document.getElementById('mdl-custom-wrap').style.display = 'block';
+      document.getElementById('mdl-custom').value = saved;
+    }
+  }
+}
+
+function onMdlChange() {
+  const isCustom = document.getElementById('mdl-sel').value === 'custom';
+  document.getElementById('mdl-custom-wrap').style.display = isCustom ? 'block' : 'none';
+}
+
+function saveModel() {
+  const sel = document.getElementById('mdl-sel').value;
+  const val = (sel === 'custom') ? document.getElementById('mdl-custom').value.trim() : sel;
+  if (!val) return alert("Enter model ID");
+  
+  CFG.models[CFG.provider] = val;
+  cfgSave();
+  updateBadge(); // Update UI immediately
+  swTabById('key'); // Move to next tab
+}
+
+function saveKey() {
+  const val = document.getElementById('key-inp').value.trim();
+  const statusEl = document.getElementById('key-status');
+  
+  if (val.length < 5) {
+    if (statusEl) {
+      statusEl.textContent = "❌ Invalid Key";
+      statusEl.className = "key-status ks-bad";
+    }
+    return;
+  }
+
+  CFG.keys[PROV[CFG.provider].kname] = val;
+  cfgSave();
+  updateBadge();
+  
+  // Feedback Logic
+  if (statusEl) {
+    statusEl.textContent = "✅ Key saved successfully!";
+    statusEl.className = "key-status ks-ok";
+  }
+  
+  // Optional: Auto-close after 1 second
+  setTimeout(closeSettings, 800);
+}
+
+function toggleLang() {
+  lang = lang === 'en' ? 'hi' : 'en';
+  localStorage.setItem('qf_lang', lang);
+  applyUI();
+}
+
+function applyUI() {
+  const dict = I18N[lang];
+  document.querySelectorAll('[data-i18n]').forEach(el => {
+    const key = el.getAttribute('data-i18n');
+    if (dict[key]) el.textContent = dict[key];
+  });
+  document.querySelectorAll('[data-i18n-ph]').forEach(el => {
+    const key = el.getAttribute('data-i18n-ph');
+    if (dict[key]) el.placeholder = dict[key];
+  });
+  document.getElementById('lang-btn').textContent = lang.toUpperCase();
+}
+
+// ── UTILS ──
+function esc(s) { 
+  if (!s) return '';
+  return String(s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;') // Crucial for attribute safety
+    .replace(/'/g, '&#039;'); // Crucial for string safety
+}
+function show(id) { 
+  document.querySelectorAll('.scr').forEach(s => s.classList.remove('show')); 
+  const target = document.getElementById(id);
+  if (target) target.classList.add('show'); 
+}
+function goHome() {
+  // Stop any active timers just in case
+  if (S.tTimer) clearInterval(S.tTimer);
+  
+  // Clear any loading states
+  S._abort = true; 
+  
+  // Switch to the home screen
+  show('scr-home');
+  
+  // Re-run the badge check to ensure "No AI" warning is accurate
+  updateBadge();
+}
+function cancelLoad() { 
+  S._abort = true; 
+  goHome(); 
+}
+// Maps AI JSON keys to the internal App format (handles inconsistent AI naming)
+function normQ(r) {
+  // Extract keywords if they exist, otherwise fallback to an empty array
+  let keywords = r.kw || r.keywords || [];
+  
+  // SAFETY FALLBACK: If AI provided no keywords, use the correct answer as a keyword
+  // This ensures the "Fact Map" always has something to track.
+  if (keywords.length === 0 && (r.ans !== undefined || r.correct !== undefined)) {
+    const ansIdx = r.ans !== undefined ? r.ans : r.correct;
+    const options = r.opts || r.options || [];
+    if (options[ansIdx]) {
+      keywords = [options[ansIdx].toLowerCase()]; 
+    }
+  }
+
+  return {
+    question: r.q || r.question || '',
+    options: r.opts || r.options || [],
+    correct: r.ans !== undefined ? r.ans : (r.correct !== undefined ? r.correct : 0),
+    explanation: r.why || r.explanation || '',
+    kw: Array.isArray(keywords) ? keywords : [keywords] // Ensure it's always an array
+  };
+}
+function confirmEnd(type) {
+  // 1. Ask for confirmation so progress isn't lost by accident
+  const msg = type === 'test' 
+    ? "Are you sure? Your test progress will be lost." 
+    : "End this practice session and return home?";
+    
+  if (confirm(msg)) {
+    // 2. Clean up timers if in Test mode
+    if (S.tTimer) {
+      clearInterval(S.tTimer);
+      S.tTimer = null;
+    }
+    
+    // 3. Reset session state
+    S.pAns = 0;
+    S.pCor = 0;
+    S.pQ = [];
+    
+    // 4. Return to home screen
+    goHome();
+  }
+}
+// ── TOPIC MANAGEMENT (SETTINGS UI) ──
+
+function renderTopics() {
+  const m = memLoad(); // Loads all saved sessions
+  const el = document.getElementById('topics-list');
+  const keys = Object.keys(m);
+  
+  if (!keys.length) {
+    el.innerHTML = '<p style="font-size:12px;color:var(--mu);text-align:center;padding:20px;">No sessions saved yet.</p>';
+    return;
+  }
+
+  el.innerHTML = keys.map(k => {
+    const mem = m[k];
+    const factCount = Object.keys(mem.knownFacts || {}).length;
+    // Calculate stealth level for display: 1 level per 50 correct answers
+    const currentLvl = Math.min(7, Math.floor((mem.totalCorrect || 0) / 50) + 1);
+    
+    return `
+      <div class="topic-row">
+        <div style="flex:1">
+          <div class="topic-name">${esc(k)}</div>
+          <div class="topic-meta">
+            ${factCount} Facts Mastered · Difficulty: ${currentLvl}/7 
+            (${mem.totalCorrect || 0} total correct)
+          </div>
+        </div>
+        <div style="display:flex; gap:6px">
+          <button class="btn-sm" style="color:var(--blue)" onclick="resumeFromList('${esc(k)}')">Resume</button>
+          <button class="btn-sm" title="Reset Mastery" onclick="resetTopicLevel('${esc(k)}')">🔄</button>
+          <button class="btn-sm" style="color:var(--red)" title="Delete Session" onclick="deleteTopic('${esc(k)}')">🗑</button>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+// Resumes a session directly from the settings list
+function resumeFromList(topic) {
+  closeSettings();
+  const input = document.getElementById('topic-inp');
+  if (input) input.value = topic;
+  startSession(); // This will automatically calculate the level based on totalCorrect
+}
+
+// Resets progress (Count/Level) but keeps the "Mastered Facts" (Avoid list)
+function resetTopicLevel(topic) {
+  if (confirm(`Reset mastery progress for "${topic}"?\n\nYou will start over from beginner questions, but the AI will still remember and avoid the facts you previously mastered.`)) {
+    let m = memLoad();
+    if (m[topic]) {
+      m[topic].totalCorrect = 0; // Resets level calculation to 1
+      memSave(m);
+      renderTopics(); // Refresh the list
+    }
+  }
+}
+
+// Completely wipes a topic from memory
+function deleteTopic(topic) {
+  if (confirm(`PERMANENTLY DELETE all data for "${topic}"?\n\nThis cannot be undone.`)) {
+    const m = memLoad();
+    delete m[topic];
+    memSave(m);
+    renderTopics(); // Refresh the list
+  }
+}
+
+// Optional: Clear everything
+function clearAllTopics() {
+  if (confirm("Wipe ALL session history and mastery data?")) {
+    localStorage.removeItem(MEM_KEY);
+    renderTopics();
+  }
+}
+function openSettings(t) { document.getElementById('overlay-settings').classList.add('show'); swTabById(t || 'provider'); }
+function closeSettings() { document.getElementById('overlay-settings').classList.remove('show'); }
+function swTabById(id) { const b = document.querySelector(`.mtab[data-tab="${id}"]`); if (b) swTab(b); }
+function toggleEye() { const i = document.getElementById('key-inp'); i.type = i.type==='password'?'text':'password'; }
+function updateBadge() {
+  const b = document.getElementById('pbadge');
+  const warn = document.getElementById('warn-no-key');
+  const isConfigured = hasKey();
+
+  if (isConfigured) {
+    const p = PROV[CFG.provider];
+    b.textContent = p.blabel;
+    b.className = `pbadge ${p.badge}`;
+    if (warn) warn.style.display = 'none'; // Hides the "No AI Configured" banner
+  } else {
+    b.textContent = '⚙ No AI';
+    b.className = 'pbadge pb-n';
+    if (warn) warn.style.display = 'block'; // Shows the banner
+  }
+}
+function pickMode(el) {
+  document.querySelectorAll('.mcard').forEach(c => c.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('test-cfg').style.display = el.dataset.mode === 'test' ? 'block' : 'none';
+}
+
+function downloadNotesPDF() {
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF();
+  const list = document.querySelectorAll('.qna-block');
+  if (list.length === 0) return alert("No notes to export.");
+  doc.setFontSize(18); doc.text("QuizForge Notes", 14, 22);
+  let y = 35;
+  list.forEach((block, i) => {
+    const q = block.querySelector('.qna-q').innerText;
+    const a = block.querySelector('.qna-a').innerText;
+    if (y > 270) { doc.addPage(); y = 20; }
+    doc.setFontSize(12); doc.text(`${i+1}. ${q}`, 14, y);
+    y += 7; doc.setFontSize(10); doc.text(`Ans: ${a}`, 14, y);
+    y += 12;
+  });
+  doc.save("QuizForge-Notes.pdf");
+}
+
+let idleTimer;
+
+function resetIdleTimer() {
+  clearTimeout(idleTimer);
+  // 15 Minutes = 900,000ms
+  idleTimer = setTimeout(autoExitSession, 900000); 
+}
+
+
+function autoExitSession() {
+  const isPractice = document.getElementById('scr-practice').classList.contains('show');
+  const isTest = document.getElementById('scr-test').classList.contains('show');
+  
+  if (S.topic && (isPractice || isTest)) {
+    console.log("🕒 Inactivity timeout. Saving and returning home.");
+    // No alert here usually, just go home to save state
+    goHome();
+  }
+}
+
+// Wrappers to allow "Retry" buttons to work
+function restartTopic() {
+  startSession();
+}
+
+function retryTest() {
+  startSession();
+}
+// Add these to your window.onload listeners
+let _mp = 'gemini';
+
+window.onload = () => {
+
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('sw.js').catch(() => console.log("PWA: Service Worker failed"));
+  }
+
+  cfgLoad(); 
+  applyUI(); 
+  selProv(CFG.provider || 'gemini');
+  
+  // Attach activity listeners for the idle timer
+  ['mousedown', 'keydown', 'touchstart', 'scroll'].forEach(evt => {
+    document.addEventListener(evt, resetIdleTimer, {passive: true});
+  });
+  resetIdleTimer();
+};
+
+</script>
+</body>
+</html>
