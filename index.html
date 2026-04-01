@@ -283,7 +283,13 @@ a:hover{text-decoration:underline}
   .stats-grid{grid-template-columns:1fr 1fr}
   .mode-grid,.two-col{grid-template-columns:1fr}
   .hdr-title p{display:none}
-  .pbadge{display:none}
+  /* Show badge but make it slightly smaller so it fits next to the title */
+  .pbadge {
+    display: inline-flex;
+    max-width: 90px;
+    font-size: 10px;
+    height: 28px;
+  }
 }
 
 /* --- ANIMATIONS --- */
@@ -1641,7 +1647,10 @@ let _mp = 'gemini';
 window.onload = () => {
 
   if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('sw.js').catch(() => console.log("PWA: Service Worker failed"));
+    // Using './sw.js' ensures it looks in the current folder, not the site root
+    navigator.serviceWorker.register('./sw.js')
+      .then(reg => console.log("PWA: Service Worker registered", reg.scope))
+      .catch(err => console.log("PWA: Service Worker failed", err));
   }
 
   cfgLoad(); 
