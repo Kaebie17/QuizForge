@@ -1359,6 +1359,11 @@ function swTab(btn) {
       document.getElementById('mdl-custom').value = saved;
     }
   }
+  if (tab === 'key') {
+    const p = PROV[CFG.provider];
+    document.getElementById('key-inp').value = CFG.keys[p.kname] || '';
+    document.getElementById('key-status').textContent = ''; // Reset status text
+  }
 }
 
 function onMdlChange() {
@@ -1368,12 +1373,17 @@ function onMdlChange() {
 
 function saveModel() {
   const sel = document.getElementById('mdl-sel').value;
-  const val = (sel === 'custom') ? document.getElementById('mdl-custom').value.trim() : sel;
+  const val = (sel === 'custom') ? document.getElementById('mdl-custom').value.trim().toLowerCase() : sel.toLowerCase();
   if (!val) return alert("Enter model ID");
   
   CFG.models[CFG.provider] = val;
   cfgSave();
   updateBadge(); // Update UI immediately
+
+  // Visual feedback
+  const hintEl = document.getElementById('mdl-hint');
+  if (hintEl) hintEl.textContent = `Active: ${val}`;
+  
   swTabById('key'); // Move to next tab
 }
 
@@ -1571,6 +1581,22 @@ function clearAllTopics() {
   if (confirm("Wipe ALL session history and mastery data?")) {
     localStorage.removeItem(MEM_KEY);
     renderTopics();
+  }
+}
+function clearKey() {
+  const p = PROV[CFG.provider];
+  if (p && CFG.keys[p.kname]) {
+    delete CFG.keys[p.kname]; // Remove the specific key
+    cfgSave();
+    updateBadge(); // Reset the "No AI" warning
+    
+    // Clear the UI
+    document.getElementById('key-inp').value = '';
+    const statusEl = document.getElementById('key-status');
+    if (statusEl) {
+      statusEl.textContent = "🗑 Key cleared from this browser.";
+      statusEl.className = "key-status ks-no";
+    }
   }
 }
 function openSettings(t) { document.getElementById('overlay-settings').classList.add('show'); swTabById(t || 'provider'); }
