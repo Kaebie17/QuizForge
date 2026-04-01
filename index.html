@@ -433,7 +433,7 @@ a:hover{text-decoration:underline}
     <div class="frow" style="margin-bottom:6px">
       <label id="key-label" data-i18n="tab_key">API Key</label>
       <div class="key-row">
-        <input type="password" id="key-inp" placeholder="..." autocomplete="off">
+        <input type="password" id="key-inp" placeholder="..." autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" inputmode="url">
         <button class="eye-btn" onclick="toggleEye()">👁</button>
       </div>
       <div class="hint" id="key-hint"></div>
@@ -468,13 +468,6 @@ a:hover{text-decoration:underline}
       <button class="btn-sm" onclick="renderTopics()" style="font-size:12px" data-i18n="btn_refresh">↺ Refresh</button>
       <button class="btn-sm" style="color:var(--red);border-color:var(--red);font-size:12px" onclick="clearAllTopics()" data-i18n="btn_clr_all">🗑 Clear All</button>
     </div>
-  </div>
-  <div style="margin-top: 30px; border-top: 1.5px dashed var(--red); padding-top: 15px;">
-    <p style="font-size:10px; color:var(--red); font-weight:800; margin-bottom:8px; letter-spacing:0.5px;">DANGER ZONE</p>
-    <button class="btn-sm" style="color:var(--red); border-color:var(--red); width:100%; font-weight:700;" onclick="fullFactoryReset()">
-      ☢️ FULL FACTORY RESET
-    </button>
-    <div class="hint" style="color:var(--red); opacity:0.8;">Wipes all API keys, model settings, and all mastery history.</div>
   </div>
  </div>
 </div>
@@ -788,17 +781,36 @@ const PROV = {
     models: [{id:'gemini-1.5-flash', label:'Gemini 1.5 Flash'}, {id:'gemini-1.5-pro', label:'Gemini 1.5 Pro'}],
     def: 'gemini-1.5-flash',
     async call(key, model, prompt, sysMsg) {
-      const url = `https://generativelanguage.googleapis.com/v1/models/${model}:generateContent?key=${key}`;
-      const fullPrompt = `${sysMsg}\n\nUSER REQUEST: ${prompt}`;
-      const r = await fetch(url, {
-        method: 'POST', headers: {'Content-Type':'application/json'},
-        body: JSON.stringify({ contents: [{parts: [{text: fullPrompt}]}] })
-      });
-      const d = await r.json();
-      if (d.error) throw new Error(d.error.message);
-      if (!d.candidates || !d.candidates[0]) throw new Error("No response. Check API key/Model ID.");
-      return d.candidates[0].content.parts[0].text;
-    }
+  // 1. ULTRA CLEAN: Remove EVERYTHING except basic letters/numbers
+  const cleanKey = key.replace(/[^a-zA-Z0-9-_]/g, '');
+  let cleanMdl = model.replace(/[^a-zA-Z0-9-._]/g, ''); 
+  if (cleanMdl.startsWith('models/')) cleanMdl = cleanMdl.replace('models/', '');
+  
+  // 2. Format URL exactly as Google documentation requires
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${cleanMdl}:generateContent?key=${cleanKey}`;
+  
+  // 3. Encode the message safely to prevent mobile character mangling
+  const safeText = String(sysMsg + "\n\n" + prompt);
+  const payload = {
+    contents: [{ parts: [{ text: safeText }] }]
+  };
+
+  const r = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  });
+
+  if (!r.ok) {
+    // This will reveal the EXACT reason Google is rejecting the mobile request
+    const errRaw = await r.text(); 
+    throw new Error(`STATUS_${r.status}: ${errRaw}`);
+  }
+
+  const d = await r.json();
+  if (!d.candidates || !d.candidates[0]) throw new Error("No response from AI.");
+  return d.candidates[0].content.parts[0].text;
+}
   },
   openai: {
     name: 'OpenAI', kname: 'ok', badge: 'pb-o', blabel: '🟢 ChatGPT',
@@ -847,22 +859,31 @@ const PROV = {
 // ── CORE ENGINE ──
 async function aiJSON(prompt) {
   const p = PROV[CFG.provider];
-  // Hard-clean the strings at the moment of the call to fix mobile-specific whitespace bugs
-  const model = (CFG.models[CFG.provider] || p.def).trim().toLowerCase();
-  const key = (CFG.keys[p.kname] || "").trim().replace(/\s/g, '');
+  const model = CFG.models[CFG.provider] || p.def;
+  const key = CFG.keys[p.kname];
 
-  if (!key) {
-    alert("Key is missing in memory.");
-    openSettings('key');
-    throw new Error("Missing Key");
-  }
+  // 1. Start the Console Group and Timer
+  console.group(`%c🚀 API CALL: ${CFG.provider.toUpperCase()}`, "color: #c94f2a; font-weight: bold;");
+  console.log(`Model: %c${model}`, "color: #2a6ec9; font-weight: bold;");
+  console.log(`Full Prompt:`, prompt); // Log the full prompt for debugging repetition
+  console.time("⏱ API Response Time"); 
 
-  const sysMsg = `You are a professional tutor. You MUST generate all content in ${lang === 'hi' ? 'Hindi' : 'English'}. Return ONLY a JSON array. Format: [{"q":"?", "opts":["a","b","c","d"], "ans":0, "why":"...", "kw":["keyword1","keyword2"]}]`;
+  // 3. Construct URL and Payload
+  const sysMsg = `Professional tutor. Output ONLY a JSON array. Language: ${lang === 'hi' ? 'Hindi' : 'English'}`;
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`;
   
+  const payload = {
+    contents: [{ parts: [{ text: `${sysMsg}\n\nTask: ${prompt}` }] }]
+  };
+
   try {
-    // Perform the API call using the cleaned key and model
+    // 2. Perform the API call
     const txt = await p.call(key, model, prompt, sysMsg);
     
+    // 3. Log Success and the Raw Response
+    console.timeEnd("⏱ API Response Time");
+    console.log("%c✅ RAW RESPONSE RECEIVED:", "color: #1f9c5c; font-weight: bold;", txt);
+
     const clean = txt.replace(/```json|```/g, "").trim();
     const match = clean.match(/\[[\s\S]*\]/);
     
@@ -870,23 +891,20 @@ async function aiJSON(prompt) {
       throw new Error("AI returned text/markdown instead of a JSON array.");
     }
 
-    return JSON.parse(match[0]);
+    const parsedData = JSON.parse(match[0]);
+    
+    // 4. Log the Final Parsed Data
+    console.log("📦 PARSED JSON:", parsedData);
+    console.groupEnd(); // Close the console group
+    
+    return parsedData;
 
   } catch (err) {
-    // ── THE UNIVERSAL TRUTH: DIAGNOSTICS ──
-    const errMsg = err.message.toLowerCase();
-    
-    if (errMsg.includes("not found") || errMsg.includes("404") || errMsg.includes("supported")) {
-      alert(`DIAGNOSTIC: MODEL ERROR (404)\n\nThe model name "${model}" is not recognized by Google.\n\nFix: Go to Settings > Model and choose a valid ID like 'gemini-1.5-flash'.`);
-    } 
-    else if (errMsg.includes("api key") || errMsg.includes("401") || errMsg.includes("invalid")) {
-      alert(`DIAGNOSTIC: KEY ERROR (401)\n\nGoogle rejected your API Key.\n\nFix: Re-copy your key from Google AI Studio and re-save it in Settings.`);
-    } 
-    else {
-      alert("DIAGNOSTIC: CONNECTION ERROR\n" + err.message);
-    }
-    
-    throw err; 
+    // 5. Log Failure and clean up the console state
+    console.timeEnd("⏱ API Response Time");
+    console.error("%c❌ API CALL FAILED:", "color: #c9392a; font-weight: bold;", err.message);
+    console.groupEnd(); // Ensure the group is closed even on error
+    throw err; // Re-throw so the UI (loadPractice) can show the alert
   }
 }
 
@@ -1395,7 +1413,11 @@ function saveModel() {
 }
 
 function saveKey() {
-  const val = document.getElementById('key-inp').value.trim();
+  // AFTER (aggressively strips all invisible/corrupt characters at save time)
+const val = document.getElementById('key-inp').value
+  .replace(/[^\x20-\x7E]/g, '')  // Remove all non-ASCII printable characters
+  .replace(/\s/g, '')              // Remove all whitespace
+  .trim();
   const statusEl = document.getElementById('key-status');
   
   if (val.length < 5) {
@@ -1603,25 +1625,6 @@ function clearKey() {
     if (statusEl) {
       statusEl.textContent = "🗑 Key cleared from this browser.";
       statusEl.className = "key-status ks-no";
-    }
-  }
-}
-function fullFactoryReset() {
-  const c1 = confirm("⚠️ EXTREME WARNING ⚠️\n\nThis will permanently delete:\n1. ALL API Keys\n2. ALL saved Model IDs\n3. ALL Mastery/Session history for every topic.\n\nThis cannot be undone. Are you sure?");
-  
-  if (c1) {
-    const c2 = confirm("FINAL CHECK: Are you absolutely certain you want to wipe this app clean?");
-    if (c2) {
-      // 1. Wipe all known localStorage keys for QuizForge
-      localStorage.removeItem('qf_cfg');    // Wipes Keys & Models
-      localStorage.removeItem('qf_mem_v1'); // Wipes Topics & Mastered Facts
-      localStorage.removeItem('qf_lang');   // Wipes Language settings
-      
-      // 2. Clear any other session data
-      alert("App has been reset to factory state. The page will now reload.");
-      
-      // 3. Force reload to reset the app state
-      window.location.reload();
     }
   }
 }
