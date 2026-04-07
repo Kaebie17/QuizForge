@@ -44,7 +44,7 @@ a:hover{text-decoration:underline}
 /* ── LAYOUT ── */
 #wrap{max-width:740px;width:100%;margin:0 auto;padding:14px 16px 80px}
 .hdr{display:flex;align-items:center;gap:10px;padding:10px 0 14px}
-.logo{width:38px;height:38px;min-width:38px;border-radius:10px;background:var(--acc);display:grid;place-items:center;font-family:'DM Serif Display',serif;color:#fff;font-size:20px}
+.logo{width:38px;height:38px;min-width:38px;border-radius:10px;background:var(--acc);display:grid;place-items:center;font-family:'DM Serif Display',serif;font-style: italic;color:#fff;font-size:20px}
 .hdr-title{flex:1;min-width:0}
 .hdr-title h1{font-family:'DM Serif Display',serif;font-size:20px;font-weight:400;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .hdr-title p{font-size:11px;color:var(--mu);margin-top:1px}
@@ -338,9 +338,36 @@ a:hover{text-decoration:underline}
   100% { width: 1000px; height: 1000px; opacity: 0; border-width: 1px; }
 }
 
+/* ── STYLE GRID (COMPACT) ── */
+.style-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+  margin-bottom: 18px;
+}
+.scard {
+  border: 1.5px solid var(--bdr);
+  border-radius: 10px;
+  padding: 8px 10px;
+  background: var(--sur);
+  text-align: left;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: all .15s;
+  cursor: pointer;
+}
+.scard:hover, .scard.active { border-color: var(--acc); background: var(--acc-l); }
+.scard-ico { font-size: 16px; flex-shrink: 0; }
+.scard-txt { font-weight: 600; font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+@media(max-width:500px){
+  .style-grid { grid-template-columns: 1fr; gap: 6px; }
+}
 </style>
 </head>
 <body>
+<div id="celebration-wrap"></div>
 <div id="wrap">
   <!-- Version Change Notification -->
 <div id="update-banner" style="display:none; background:var(--blue); color:white; padding:10px; text-align:center; position:sticky; top:0; z-index:9999; font-size:13px; font-weight:600; border-radius:0 0 12px 12px; margin-bottom:10px;">
@@ -507,6 +534,26 @@ a:hover{text-decoration:underline}
     <div class="frow">
       <label data-i18n="lbl_topic">Topic / Reasoning / Grammar / Exam</label>
       <input type="text" id="topic-inp" placeholder="..." maxlength="200" data-i18n-ph="topic_ph">
+    </div>
+    <div class="frow">
+      <label>Question Style</label>
+      <div class="style-grid">
+        <button class="scard active" data-style="default" onclick="pickStyle(this)">
+          <span class="scard-ico">🌀</span><span class="scard-txt">Default (Mix)</span>
+        </button>
+        <button class="scard" data-style="evaluative" onclick="pickStyle(this)">
+          <span class="scard-ico">📋</span><span class="scard-txt">Evaluative</span>
+        </button>
+        <button class="scard" data-style="logical" onclick="pickStyle(this)">
+          <span class="scard-ico">🧠</span><span class="scard-txt">Assertion-Reason</span>
+        </button>
+        <button class="scard" data-style="relational" onclick="pickStyle(this)">
+          <span class="scard-ico">🔗</span><span class="scard-txt">Match-Up</span>
+        </button>
+        <button class="scard" data-style="mastery" onclick="pickStyle(this)">
+          <span class="scard-ico">💎</span><span class="scard-txt">Mastery (MSQ)</span>
+        </button>
+      </div>
     </div>
     <div class="frow">
       <label data-i18n="lbl_mode">Select Mode</label>
@@ -771,7 +818,7 @@ let lang = localStorage.getItem('qf_lang') || 'en';
 
 // ── APP STATE ──
 const S = {
-  topic: '', mode: 'practice',
+  topic: '', mode: 'practice', style: 'default',
   pLevel: 1, pQ: [], pAns: 0, pCor: 0, pUsed: [],
   tQ: [], tCur: 0, tAns: [], tTotal: 0, tLeft: 0, tTimer: null, tStartTime: 0,
   _abort: false,
@@ -883,54 +930,50 @@ const PROV = {
 
 // ── CORE ENGINE ──
 async function aiJSON(prompt) {
-  let freshCFG;
+  // 1. Always pull fresh from disk (Fixes PWA state-loss)
+  let diskCfg;
   try {
-    freshCFG = JSON.parse(localStorage.getItem('qf_cfg') || '{}');
-  } catch(e) {
-    freshCFG = CFG;
-  }
-  const providerName = freshCFG.provider || 'gemini';
-  const p = PROV[CFG.provider];
-  const model = freshCFG.models?.[providerName] || p.def;
-  const key = freshCFG.keys?.[p.kname] || '';
-
-  const safePrompt = prompt
-    .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, '') // strip control chars
-    .trim();
-  // 3. Construct URL and Payload
-  const sysMsg = `Professional tutor. Output ONLY a JSON array. Language: ${lang === 'hi' ? 'Hindi' : 'English'}`;
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`;
+    diskCfg = JSON.parse(localStorage.getItem('qf_cfg') || '{}');
+  } catch(e) { diskCfg = CFG; }
   
-  const payload = {
-    contents: [{ parts: [{ text: `${sysMsg}\n\nTask: ${safePrompt}` }] }]
-  };
+  const provider = diskCfg.provider || 'gemini';
+  const p = PROV[provider]; 
+  
+  // 2. Resolve Model and Key explicitly from disk
+  const model = (diskCfg.models && diskCfg.models[provider]) ? diskCfg.models[provider] : p.def;
+  const key = (diskCfg.keys && diskCfg.keys[p.kname]) ? diskCfg.keys[p.kname] : '';
 
+  // 3. System Instructions (Tells AI how to behave)
+  const sysMsg = `Professional tutor. Output ONLY a JSON array. Language: ${lang === 'hi' ? 'Hindi' : 'English'}`;
+  
   try {
-    // 2. Perform the API call
-    const txt = await p.call(key, model, safePrompt, sysMsg);
+    // 4. Delegate to the provider-specific call logic
+    const txt = await p.call(key, model, prompt, sysMsg);
     
-    // 3. Log Success and the Raw Response
-    console.timeEnd("⏱ API Response Time");
-    console.log("%c✅ RAW RESPONSE RECEIVED:", "color: #1f9c5c; font-weight: bold;", txt);
-
+    // 5. Clean and Parse
     const clean = txt.replace(/```json|```/g, "").trim();
     const match = clean.match(/\[[\s\S]*\]/);
     
-    if (!match) {
-      throw new Error("AI returned text/markdown instead of a JSON array.");
-    }
-
-    const parsedData = JSON.parse(match[0]);
-    
-    return parsedData;
+    if (!match) throw new Error("AI response was not a valid JSON array.");
+    return JSON.parse(match[0]);
 
   } catch (err) {
-    // 5. Log Failure and clean up the console state
-    console.timeEnd("⏱ API Response Time");
-    console.error("%c❌ API CALL FAILED:", "color: #c9392a; font-weight: bold;", err.message);
-    console.groupEnd(); // Ensure the group is closed even on error
-    throw err; // Re-throw so the UI (loadPractice) can show the alert
+    // Show a helpful error if the network or key fails
+    alert("Generation Error: " + err.message);
+    throw err;
   }
+}
+
+// function to generate the specific instructions for each style of question.
+function getStyleDirective() {
+  const directives = {
+    default: "Standard mix of recall and analysis.",
+    evaluative: "Use Multi-Statement format. Provide 2-3 numbered statements in the question, then options like '1 only', '1 and 2 only', etc.",
+    logical: "Use Assertion-Reasoning format. Structure question as 'Assertion: [statement] \\nReason: [justification]'. Options should test if both are true and if Reason explains Assertion.",
+    relational: "Use Match-up format. Provide two lists in the question. Options should be correct mappings (e.g. A-1, B-3, C-2).",
+    mastery: "MULTIPLE SELECT QUESTION (MSQ). 1, 2, or 3 options can be independently correct. The 'ans' field MUST be an array of correct indices, e.g., [0, 2]."
+  };
+  return directives[S.style] || directives.default;
 }
 
 // --- CONSOLIDATED START SESSION ---
@@ -945,6 +988,10 @@ async function startSession() {
   
   // RESUME: Calculate Level based on 50-question milestones
   const mem = memGet(topic);
+  if (mem.lastStyle) {
+    const target = document.querySelector(`.scard[data-style="${mem.lastStyle}"]`);
+    if (target) pickStyle(target);
+  }
   const totalCor = mem.totalCorrect || 0;
   S.pLevel = Math.min(7, Math.floor(totalCor / 50) + 1);
   
@@ -996,42 +1043,82 @@ async function loadPractice() {
   show('scr-load');
 
   const batchSize = 10;
+  // 1. THIS LINE IS THE FIX: It pulls the specific rules for the style you clicked
+  const styleDirective = getStyleDirective(); 
+  
   const mem = memGet(S.topic);
   const masteredList = Object.entries(mem.knownFacts || {})
     .map(([k, v]) => `- [${k.split('|').join(', ')}] -> ${v}`)
     .join('\n');
 
-  // This prompt turns the AI into a "Dynamic Content Architect"
+  // 2. THIS LINE TELLS THE AI THE FORMAT: prevents the MSQ crash
+  const ansExample = S.style === 'mastery' ? '[0, 2]' : '0';
+
   const prompt = `
-    Analyze the user's request: "${S.topic}"
+    ROLE: Professional Examiner.
+    TASK: Generate exactly ${batchSize} high-quality MCQs for "${S.topic}".
     
-    1. INTENT: Is this a factual topic, a reasoning problem, a language test, or a specific exam prep (e.g. UPSC, CBSE, State Boards, Professional Certs)?
-    2. FORMAT: 
-       - If it's Reasoning/Math: Provide a "Problem Scenario" first.
-       - If it's English/Comprehension: Provide a "Reading Passage" first.
-       - If it's a specific Exam: Use that exam's typical complexity (e.g., multi-statement questions for high-level civil services).
-       - If it's just a Topic: Provide conceptual MCQs.
+    QUALITY: Focus on analytical depth. Use plausible distractors. Avoid simple recall.
+    STYLE: ${styleDirective}
+    DIFFICULTY: ${LVL_EN[S.pLevel-1]}
     
-    3. TASK: Generate exactly ${batchSize} MCQs.
-    4. DIFFICULTY: ${LVL_EN[S.pLevel-1]}.
+    CRITICAL:
+    - Answer Format: ${S.style === 'mastery' ? 'MSQ Mode (Multi-select). "ans" MUST be an array.' : 'Single-choice. "ans" MUST be an integer.'}
+    - Content: If Evaluative/Logical/Relational, put the premise at the TOP of the "q" field.
+    - Avoid Mastered Facts: ${masteredList || "None yet."}
     
-    CRITICAL: 
-    - Put any Scenarios/Passages at the top of the "q" field.
-    - Avoid these mastered associations:
-    ${masteredList || "None yet."}
-    
-    Output JSON array: [{"q":"?", "opts":["a","b","c","d"], "ans":0, "why":"...", "kw":["key1","key2"]}]
+    Return ONLY a JSON array: [{"q":"?", "opts":["a","b","c","d"], "ans":${ansExample}, "why":"...", "kw":["key"]}]
   `;
 
   try {
     const raw = await aiJSON(prompt);
-    S.pQ = raw.map(normQ);
+    
+    // Normalize and Shuffle every question to break Position Bias
+    S.pQ = raw.map(item => {
+      const normalized = normQ(item);
+      return shuffleQuestion(normalized);
+    });
+
     S.pAns = 0; S.pCor = 0;
     renderPractice();
     show('scr-practice');
   } catch(e) {
-    alert("Error: " + e.message);
     goHome();
+  }
+}
+
+// ── 3. THE HYBRID ANSWER ENGINE ──
+function pAns(qi, sel, btn) {
+  const q = S.pQ[qi];
+  const isMastery = S.style === 'mastery';
+
+  // ─── CASE A: STANDARD SINGLE-SELECT ───
+  if (!isMastery) {
+    const isCorrect = (sel === q.correct);
+    handleAnswerFeedback(qi, sel, q.correct, isCorrect, btn);
+    return;
+  }
+
+  // ─── CASE B: MASTERY (CLICK-UNTIL-COMPLETE) ───
+  // If already clicked or the whole question is locked, do nothing
+  if (btn.classList.contains('cor') || btn.parentElement.classList.contains('dis')) return;
+
+  const isCorrectPart = q.correct.includes(sel);
+
+  if (isCorrectPart) {
+    // Mark this specific button green
+    btn.classList.add('cor');
+    btn.style.pointerEvents = 'none'; // Disable just this button
+    
+    // Check if user has found ALL correct options in the array
+    const currentlyFound = Array.from(btn.parentElement.querySelectorAll('.cbtn.cor')).length;
+    if (currentlyFound === q.correct.length) {
+      handleAnswerFeedback(qi, null, q.correct, true, btn);
+    }
+  } else {
+    // If they click a single wrong one, the whole MSQ fails
+    btn.classList.add('wrg');
+    handleAnswerFeedback(qi, sel, q.correct, false, btn);
   }
 }
 
@@ -1072,45 +1159,85 @@ function renderPractice() {
 
 function pAns(qi, sel, btn) {
   const q = S.pQ[qi];
-  const isCorrect = (sel === q.correct);
-  
-  if (isCorrect) {
-    let mem = memGet(S.topic);
-    if (!mem.knownFacts) mem.knownFacts = {};
-    
-    // Save Fact Association
-    const factKey = (q.kw || []).map(k => String(k).toLowerCase().trim()).sort().join('|');
-    if (factKey) mem.knownFacts[factKey] = String(q.options[q.correct]).toLowerCase().trim();
+  const isMastery = S.style === 'mastery';
 
-    // Track Milestone Progress
-    mem.totalCorrect = (mem.totalCorrect || 0) + 1;
-    
-    // Trigger Celebration every 50 correct answers
-    if (mem.totalCorrect > 0 && mem.totalCorrect % 50 === 0 && S.pLevel < 7) {
-      S.triggerCelebration = true;
-    }
-
-    const allMem = memLoad();
-    allMem[S.topic] = mem;
-    memSave(allMem);
+  // ─── CASE A: STANDARD SINGLE-SELECT ───
+  if (!isMastery) {
+    const isCorrect = (sel === q.correct);
+    handleAnswerFeedback(qi, sel, q.correct, isCorrect, btn);
+    return;
   }
 
-  // UI Updates
+  // ─── CASE B: MASTERY (CLICK-UNTIL-COMPLETE) ───
+  if (btn.classList.contains('cor') || btn.parentElement.classList.contains('dis')) return;
+
+  const isCorrectPart = q.correct.includes(sel);
+
+  if (isCorrectPart) {
+    // 1. Mark this specific button green and disable it
+    btn.classList.add('cor');
+    btn.style.pointerEvents = 'none';
+    
+    // 2. Check if all correct parts are found
+    const currentlyFound = Array.from(btn.parentElement.querySelectorAll('.cbtn.cor')).length;
+    if (currentlyFound === q.correct.length) {
+      handleAnswerFeedback(qi, null, q.correct, true, btn);
+    }
+  } else {
+    // 3. Hit a wrong one? Fail the whole question immediately
+    btn.classList.add('wrg');
+    handleAnswerFeedback(qi, sel, q.correct, false, btn);
+  }
+}
+
+function handleAnswerFeedback(qi, sel, correct, isSuccess, btn) {
+  const q = S.pQ[qi];
   const parent = btn.parentElement;
-  if (parent.classList.contains('dis')) return;
-  parent.classList.add('dis');
+  parent.classList.add('dis'); // Lock the whole question block
+
+  // Reveal ALL correct answers (works for both single number and array)
   const btns = parent.querySelectorAll('.cbtn');
   btns.forEach((b, i) => {
-    if (i === q.correct) b.classList.add('cor');
+    const isThisOptionCorrect = Array.isArray(correct) ? correct.includes(i) : i === correct;
+    if (isThisOptionCorrect) b.classList.add('cor');
     else if (i === sel) b.classList.add('wrg');
   });
 
+  // Show explanation and "Learn More"
   document.getElementById(`ex-${qi}`).classList.add('show');
   document.getElementById(`lm-btn-${qi}`).style.display = 'inline-flex';
-  
+
+  // Milestone and Stealth Level Logic
+  if (isSuccess) {
+    let mem = memGet(S.topic);
+    mem.totalCorrect = (mem.totalCorrect || 0) + 1;
+    mem.lastStyle = S.style;
+    
+    // Save to Fact Map (Keywords -> Answer)
+    const factKey = (q.kw || []).map(k => String(k).toLowerCase().trim()).sort().join('|');
+    if (factKey) {
+      // If MSQ, we save "mastered" as the value, else the specific option text
+      mem.knownFacts[factKey] = Array.isArray(q.correct) ? "mastered_multiple" : q.options[q.correct];
+    }
+    
+    if (mem.totalCorrect % 50 === 0) S.triggerCelebration = true;
+    
+    // Save full mastery state
+    const all = memLoad();
+    all[S.topic] = mem;
+    memSave(all);
+  }
+
   S.pAns++;
-  if (isCorrect) S.pCor++;
+  if (isSuccess) S.pCor++;
   if (S.pAns === S.pQ.length) document.getElementById('pr-next').style.display = 'block';
+}
+
+// Helper to save current topic back to full memory
+function memSaveAll(topicMem) {
+  const all = memLoad();
+  all[S.topic] = topicMem;
+  memSave(all);
 }
 
 function nextSection() {
@@ -1169,15 +1296,28 @@ async function loadTest() {
   const num = document.getElementById('t-num').value || 20;
   
   const prompt = `
-    Analyze user request: "${S.topic}"
-    Generate ${num} professional MCQs. 
-    ADAPT: If the user specified an exam (e.g. JEE, NEET, Bank PO, HPSC, State Board), mimic that exam's specific style and difficulty distribution.
-    If Reasoning or English is mentioned, provide the necessary scenarios/passages inside the "q" field.
+    ROLE: Professional Exam Architect.
+    TASK: Generate exactly ${num} professional MCQs for: "${S.topic}".
+    
+    GUIDELINES:
+    - Use Bloom's Taxonomy (Analysis/Synthesis). 
+    - Use plausible distractors based on common misconceptions about "${S.topic}".
+    - Style: ${getStyleDirective()}
+    - Answer Format: ${S.style === 'mastery' ? 'MSQ (Multi-select array).' : 'Single integer index.'}
+    
+    Return ONLY a JSON array: [{"q":"?", "opts":["a","b","c","d"], "ans":${S.style === 'mastery' ? '[0,2]' : '0'}, "why":"...", "kw":["key"]}]
   `;
   
   try {
     const raw = await aiJSON(prompt);
-    S.tQ = raw.map(normQ);
+    
+    // ─── SHUFFLE LOGIC ───
+    S.tQ = raw.map(item => {
+      const normalized = normQ(item);
+      return shuffleQuestion(normalized);
+    });
+    // ─────────────────────
+
     S.tCur = 0; S.tTotal = S.tQ.length;
     S.tAns = new Array(S.tTotal).fill(null);
     S.tLeft = (document.getElementById('t-mins').value || 30) * 60;
@@ -1185,7 +1325,10 @@ async function loadTest() {
     startTimer();
     renderTestQ();
     show('scr-test');
-  } catch(e) { alert(e.message); goHome(); }
+  } catch(e) { 
+    alert("Test Generation Failed: " + e.message);
+    goHome(); 
+  }
 }
 
 function startTimer() {
@@ -1520,27 +1663,43 @@ function cancelLoad() {
 }
 // Maps AI JSON keys to the internal App format (handles inconsistent AI naming)
 function normQ(r) {
-  // Extract keywords if they exist, otherwise fallback to an empty array
+  // 1. Resolve keywords (Crucial for the Fact Map/Pampore repetition fix)
   let keywords = r.kw || r.keywords || [];
-  
-  // SAFETY FALLBACK: If AI provided no keywords, use the correct answer as a keyword
-  // This ensures the "Fact Map" always has something to track.
-  if (keywords.length === 0 && (r.ans !== undefined || r.correct !== undefined)) {
-    const ansIdx = r.ans !== undefined ? r.ans : r.correct;
-    const options = r.opts || r.options || [];
-    if (options[ansIdx]) {
-      keywords = [options[ansIdx].toLowerCase()]; 
+  if (!Array.isArray(keywords)) keywords = [keywords];
+
+  // 2. Resolve the raw answer from the AI (Handles various naming quirks)
+  let rawAns = r.ans !== undefined ? r.ans : (r.correct !== undefined ? r.correct : 0);
+
+  let finalCorrect;
+
+  if (S.style === 'mastery') {
+    // ─── MASTERY MODE: Always ensure an Array [0, 2] ───
+    if (Array.isArray(rawAns)) {
+      finalCorrect = rawAns.map(n => parseInt(n));
+    } else {
+      // If AI forgot and sent a single number, wrap it in an array
+      finalCorrect = [parseInt(rawAns)];
+    }
+  } else {
+    // ─── STANDARD MODES: Always ensure a single Number ───
+    if (Array.isArray(rawAns)) {
+      // If AI sent an array by mistake, take the first item
+      finalCorrect = parseInt(rawAns[0]);
+    } else {
+      finalCorrect = parseInt(rawAns);
     }
   }
 
+  // 3. Construct the standardized question object
   return {
     question: r.q || r.question || '',
     options: r.opts || r.options || [],
-    correct: r.ans !== undefined ? r.ans : (r.correct !== undefined ? r.correct : 0),
+    correct: finalCorrect, // This is what pAns uses to check validity
     explanation: r.why || r.explanation || '',
-    kw: Array.isArray(keywords) ? keywords : [keywords] // Ensure it's always an array
+    kw: keywords.map(k => String(k).toLowerCase().trim())
   };
 }
+
 function confirmEnd(type) {
   // 1. Ask for confirmation so progress isn't lost by accident
   const msg = type === 'test' 
@@ -1672,6 +1831,56 @@ function fullFactoryReset() {
     }
   }
 }
+
+function exportMasteryData() {
+  const data = { mastery: memLoad(), config: JSON.parse(localStorage.getItem('qf_cfg') || '{}') };
+  const blob = new Blob([JSON.stringify(data)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `QuizForge-Backup.json`;
+  a.click();
+}
+
+function importMasteryData(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    const data = JSON.parse(e.target.result);
+    localStorage.setItem('qf_mem_v1', JSON.stringify(data.mastery));
+    localStorage.setItem('qf_cfg', JSON.stringify(data.config));
+    location.reload();
+  };
+  reader.readAsText(file);
+}
+
+function shuffleQuestion(q) {
+  // Map options to objects to track correctness during the shuffle
+  let pairs = q.options.map((opt, i) => {
+    const isCorrect = Array.isArray(q.correct) ? q.correct.includes(i) : i === q.correct;
+    return { text: opt, isCorrect: isCorrect };
+  });
+
+  // Fisher-Yates Shuffle
+  for (let i = pairs.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [pairs[i], pairs[j]] = [pairs[j], pairs[i]];
+  }
+
+  // Update question object with new positions
+  q.options = pairs.map(p => p.text);
+  
+  if (Array.isArray(q.correct)) {
+    // MSQ: Find all new indices for correct answers
+    q.correct = pairs.map((p, i) => p.isCorrect ? i : null).filter(n => n !== null);
+  } else {
+    // Single Select: Find the one new index
+    q.correct = pairs.findIndex(p => p.isCorrect);
+  }
+  
+  return q;
+}
+
 function openSettings(t) { document.getElementById('overlay-settings').classList.add('show'); swTabById(t || 'provider'); }
 function closeSettings() { document.getElementById('overlay-settings').classList.remove('show'); }
 function swTabById(id) { const b = document.querySelector(`.mtab[data-tab="${id}"]`); if (b) swTab(b); }
@@ -1724,6 +1933,11 @@ function resetIdleTimer() {
   idleTimer = setTimeout(autoExitSession, 900000); 
 }
 
+function pickStyle(el) {
+  document.querySelectorAll('.scard').forEach(c => c.classList.remove('active'));
+  el.classList.add('active');
+  S.style = el.dataset.style;
+}
 
 function autoExitSession() {
   const isPractice = document.getElementById('scr-practice').classList.contains('show');
